@@ -1,2 +1,3 @@
 https://aistudio.google.com/apps
 
+https://docs.ckan.org/en/2.10/api/
