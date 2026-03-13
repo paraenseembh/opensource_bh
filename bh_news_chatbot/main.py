@@ -27,6 +27,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from sheets_reader import load_all_news_links, SPREADSHEET_ID
 from news_scraper import scrape_all, CACHE_FILE
 from chatbot import BHNewsChatbot
+from categorizer import categorize_articles, print_category_report
 
 logging.basicConfig(
     level=logging.INFO,
@@ -45,7 +46,8 @@ BANNER = r"""
 HELP_TEXT = """
 Comandos especiais:
   /ajuda      — mostra esta mensagem
-  /areas      — lista as áreas temáticas disponíveis
+  /areas      — lista as áreas temáticas da planilha
+  /categorias — mostra distribuição de artigos por categoria de conteúdo
   /resumo     — mostra quantos artigos foram carregados por área
   /reiniciar  — reinicia o histórico da conversa
   /sair       — encerra o chatbot
@@ -54,6 +56,7 @@ Exemplos de perguntas:
   "Quais são as últimas notícias de saúde em BH?"
   "O que está acontecendo no transporte público?"
   "Resumo das notícias de educação"
+  "Quais notícias falam sobre meio ambiente?"
 """
 
 
@@ -82,6 +85,16 @@ def parse_args():
         "--sheet-id",
         default=os.environ.get("BH_SHEET_ID", SPREADSHEET_ID),
         help="ID da planilha do Google Sheets",
+    )
+    parser.add_argument(
+        "--categorize",
+        action="store_true",
+        help="Categoriza os artigos por conteúdo usando Claude antes de iniciar o chat",
+    )
+    parser.add_argument(
+        "--only-categorize",
+        action="store_true",
+        help="Apenas categoriza e exibe o relatório, sem iniciar o chatbot",
     )
     parser.add_argument(
         "--log-level",
@@ -161,9 +174,18 @@ def run_interactive(chatbot: BHNewsChatbot):
             continue
         elif cmd in ("/areas",):
             areas = chatbot.get_areas()
-            print("\n📋 Áreas disponíveis:")
+            print("\n📋 Áreas disponíveis (da planilha):")
             for area in areas:
                 print(f"  • {area}")
+            continue
+        elif cmd in ("/categorias",):
+            if any(a.get("categories") for a in chatbot._articles):
+                print_category_report(chatbot._articles)
+            else:
+                print(
+                    "\n⚠️  Artigos ainda não categorizados.\n"
+                    "   Reinicie com --categorize para ativar a categorização."
+                )
             continue
         elif cmd in ("/resumo",):
             print("\n" + chatbot.get_articles_summary())
@@ -199,6 +221,14 @@ def main():
 
     # Carrega artigos
     articles = load_articles(args)
+
+    # Categoriza se solicitado
+    if args.categorize or args.only_categorize:
+        log.info("Categorizando artigos por conteúdo...")
+        categorize_articles(articles, api_key=args.api_key)
+        print_category_report(articles)
+        if args.only_categorize:
+            return
 
     # Inicia chatbot
     log.info("Inicializando chatbot com %d artigos...", len(articles))

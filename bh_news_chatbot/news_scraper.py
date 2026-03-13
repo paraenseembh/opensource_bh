@@ -267,10 +267,14 @@ def format_articles_for_context(articles: list[dict], max_total_chars: int = 800
         url = art.get("url", "")
         body = art.get("body", "")
 
+        categories = art.get("categories", [])
+        cats_str = ", ".join(categories) if categories else ""
+
         section = (
             f"--- NOTÍCIA ---\n"
             f"Área: {area}\n"
-            f"Título: {title}\n"
+            + (f"Categorias: {cats_str}\n" if cats_str else "")
+            + f"Título: {title}\n"
             + (f"Data: {date}\n" if date else "")
             + f"URL: {url}\n\n"
             f"{body}\n\n"

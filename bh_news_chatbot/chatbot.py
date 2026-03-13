@@ -22,10 +22,11 @@ INSTRUÇÕES:
 - Responda SEMPRE em português do Brasil.
 - Baseie suas respostas nas notícias fornecidas acima.
 - Se a informação pedida não estiver nas notícias, diga claramente que não encontrou essa informação nas fontes disponíveis.
-- Ao citar uma notícia, mencione a área temática e o título.
+- Ao citar uma notícia, mencione a área temática, as categorias (se disponíveis) e o título.
 - Seja objetivo, informativo e amigável.
 - Você pode cruzar informações de diferentes áreas quando fizer sentido.
 - Se perguntado sobre um tema amplo, faça um resumo das notícias relevantes.
+- Quando o usuário perguntar por uma categoria específica (ex: "Saúde", "Meio Ambiente"), filtre as notícias pelo campo de categorias.
 """
 
 MODEL = "claude-sonnet-4-6"
