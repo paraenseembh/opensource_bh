@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+*.pyo
+bh_news_chatbot/cache/
+.env
