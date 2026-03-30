@@ -1,12 +1,15 @@
 """
-Chatbot de notícias de Belo Horizonte alimentado pela API do Claude (Anthropic).
+Chatbot de notícias de Belo Horizonte.
 
 Recebe os artigos raspados como contexto e responde perguntas sobre BH.
+Suporta múltiplos provedores de LLM via LLMProvider (Anthropic, Gemini…).
 """
 
 import logging
 import os
 from typing import Optional
+
+from llm_provider import LLMProvider, create_provider
 
 log = logging.getLogger(__name__)
 
@@ -29,62 +32,43 @@ INSTRUÇÕES:
 - Quando o usuário perguntar por uma categoria específica (ex: "Saúde", "Meio Ambiente"), filtre as notícias pelo campo de categorias.
 """
 
-MODEL = "claude-sonnet-4-6"
-
 
 class BHNewsChatbot:
-    """Chatbot de notícias de BH usando a API do Claude."""
+    """Chatbot de notícias de BH com suporte a múltiplos provedores de LLM."""
 
-    def __init__(self, articles: list[dict], api_key: Optional[str] = None):
+    def __init__(
+        self,
+        articles: list[dict],
+        provider: Optional[LLMProvider] = None,
+        # Parâmetros legados para retrocompatibilidade
+        api_key: Optional[str] = None,
+    ):
         """
         Args:
             articles: lista de artigos com chaves url, title, date, body, area
-            api_key: chave da API Anthropic (lê ANTHROPIC_API_KEY se None)
+            provider: instância de LLMProvider (Anthropic, Gemini, etc.)
+                      Se None, usa AnthropicProvider com ANTHROPIC_API_KEY.
+            api_key: (legado) chave Anthropic. Ignorado se provider for passado.
         """
         from news_scraper import format_articles_for_context
 
-        self._key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
-        if not self._key:
-            raise ValueError(
-                "Chave da API Anthropic não encontrada. "
-                "Defina a variável de ambiente ANTHROPIC_API_KEY."
-            )
+        if provider is None:
+            provider = create_provider("anthropic", api_key=api_key)
 
+        self._provider = provider
         self._articles = articles
         self._news_context = format_articles_for_context(articles)
         self._system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
             news_context=self._news_context
         )
         self._history: list[dict] = []
-        self._client = None
-
-    def _get_client(self):
-        """Cria o cliente Anthropic de forma lazy."""
-        if self._client is None:
-            import anthropic
-            self._client = anthropic.Anthropic(api_key=self._key)
-        return self._client
 
     def chat(self, user_message: str) -> str:
-        """
-        Envia uma mensagem e retorna a resposta do chatbot.
-        Mantém histórico da conversa.
-        """
+        """Envia uma mensagem e retorna a resposta. Mantém histórico."""
         self._history.append({"role": "user", "content": user_message})
-
-        client = self._get_client()
-        import anthropic
-
-        response = client.messages.create(
-            model=MODEL,
-            max_tokens=2048,
-            system=self._system_prompt,
-            messages=self._history,
-        )
-
-        assistant_message = response.content[0].text
-        self._history.append({"role": "assistant", "content": assistant_message})
-        return assistant_message
+        response = self._provider.complete(self._system_prompt, self._history)
+        self._history.append({"role": "assistant", "content": response})
+        return response
 
     def chat_stream(self, user_message: str):
         """
@@ -92,20 +76,10 @@ class BHNewsChatbot:
         Uso: for token in chatbot.chat_stream("pergunta"): print(token, end="")
         """
         self._history.append({"role": "user", "content": user_message})
-
-        client = self._get_client()
         full_response = ""
-
-        with client.messages.stream(
-            model=MODEL,
-            max_tokens=2048,
-            system=self._system_prompt,
-            messages=self._history,
-        ) as stream:
-            for text in stream.text_stream:
-                full_response += text
-                yield text
-
+        for token in self._provider.stream(self._system_prompt, self._history):
+            full_response += token
+            yield token
         self._history.append({"role": "assistant", "content": full_response})
 
     def reset_history(self):
@@ -114,8 +88,7 @@ class BHNewsChatbot:
 
     def get_areas(self) -> list[str]:
         """Retorna as áreas temáticas disponíveis nas notícias."""
-        areas = sorted({art.get("area", "Geral") for art in self._articles})
-        return areas
+        return sorted({art.get("area", "Geral") for art in self._articles})
 
     def get_articles_summary(self) -> str:
         """Retorna um resumo dos artigos carregados."""
@@ -124,7 +97,7 @@ class BHNewsChatbot:
             area = art.get("area", "Geral")
             by_area[area] = by_area.get(area, 0) + 1
 
-        lines = ["📰 Notícias carregadas:"]
+        lines = [f"Notícias carregadas ({self._provider.name}):"]
         for area, count in sorted(by_area.items()):
             lines.append(f"  • {area}: {count} artigo(s)")
         lines.append(f"  Total: {len(self._articles)} artigos")

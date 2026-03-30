@@ -28,6 +28,7 @@ from sheets_reader import load_all_news_links, SPREADSHEET_ID
 from news_scraper import scrape_all, CACHE_FILE
 from chatbot import BHNewsChatbot
 from categorizer import categorize_articles, print_category_report
+from llm_provider import create_provider
 
 logging.basicConfig(
     level=logging.INFO,
@@ -77,9 +78,25 @@ def parse_args():
         help="Máximo de artigos por área temática (padrão: 10)",
     )
     parser.add_argument(
+        "--provider",
+        default="anthropic",
+        choices=["anthropic", "gemini"],
+        help="Provedor de LLM: 'anthropic' (padrão) ou 'gemini'",
+    )
+    parser.add_argument(
         "--api-key",
         default=os.environ.get("ANTHROPIC_API_KEY", ""),
         help="Chave da API Anthropic (ou use ANTHROPIC_API_KEY)",
+    )
+    parser.add_argument(
+        "--gemini-key",
+        default=os.environ.get("GEMINI_API_KEY", ""),
+        help="Chave da API Google Gemini (ou use GEMINI_API_KEY)",
+    )
+    parser.add_argument(
+        "--model",
+        default=None,
+        help="Modelo específico a usar (ex: gemini-1.5-pro, claude-sonnet-4-6)",
     )
     parser.add_argument(
         "--sheet-id",
@@ -211,13 +228,17 @@ def main():
     # Configura nível de log
     logging.getLogger().setLevel(getattr(logging, args.log_level))
 
-    # Valida API key
-    if not args.api_key:
-        print(
-            "❌ Chave da API Anthropic não encontrada.\n"
-            "   Defina a variável ANTHROPIC_API_KEY ou use --api-key KEY"
-        )
+    # Cria provedor de LLM
+    try:
+        key = args.gemini_key if args.provider == "gemini" else args.api_key
+        chat_provider = create_provider(args.provider, api_key=key, model=args.model)
+        # Categorização usa modelo rápido/barato do mesmo provedor
+        fast_provider = create_provider(args.provider, api_key=key, fast=True)
+    except ValueError as e:
+        print(f"❌ {e}")
         sys.exit(1)
+
+    log.info("Provedor: %s", chat_provider.name)
 
     # Carrega artigos
     articles = load_articles(args)
@@ -225,7 +246,7 @@ def main():
     # Categoriza se solicitado
     if args.categorize or args.only_categorize:
         log.info("Categorizando artigos por conteúdo...")
-        categorize_articles(articles, api_key=args.api_key)
+        categorize_articles(articles, provider=fast_provider)
         print_category_report(articles)
         if args.only_categorize:
             return
@@ -233,7 +254,7 @@ def main():
     # Inicia chatbot
     log.info("Inicializando chatbot com %d artigos...", len(articles))
     try:
-        bot = BHNewsChatbot(articles=articles, api_key=args.api_key)
+        bot = BHNewsChatbot(articles=articles, provider=chat_provider)
     except ValueError as e:
         print(f"❌ {e}")
         sys.exit(1)
