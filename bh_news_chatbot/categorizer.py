@@ -14,10 +14,9 @@ import os
 from pathlib import Path
 from typing import Optional
 
-log = logging.getLogger(__name__)
+from llm_provider import LLMProvider, create_provider
 
-# Modelo mais leve para classificação em lote (mais barato e rápido)
-CATEGORIZER_MODEL = "claude-haiku-4-5-20251001"
+log = logging.getLogger(__name__)
 
 # Taxonomia de categorias relevantes para BH
 CATEGORIES = [
@@ -103,20 +102,12 @@ def _build_batch_prompt(batch: list[dict]) -> str:
 
 
 def _classify_batch(
-    client,
+    provider: LLMProvider,
     batch: list[dict],
 ) -> dict[str, list[str]]:
     """Envia um lote de artigos para classificação e retorna {url: [categorias]}."""
     prompt = _build_batch_prompt(batch)
-
-    response = client.messages.create(
-        model=CATEGORIZER_MODEL,
-        max_tokens=1024,
-        system=_SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": prompt}],
-    )
-
-    raw = response.content[0].text.strip()
+    raw = provider.complete(_SYSTEM_PROMPT, [{"role": "user", "content": prompt}]).strip()
 
     # Extrai JSON da resposta (pode vir com markdown code block)
     json_match = __import__("re").search(r"\{.*\}", raw, __import__("re").DOTALL)
@@ -150,32 +141,31 @@ def _classify_batch(
 
 def categorize_articles(
     articles: list[dict],
+    provider: Optional[LLMProvider] = None,
+    # Parâmetros legados para retrocompatibilidade
     api_key: Optional[str] = None,
     use_cache: bool = True,
     batch_size: int = BATCH_SIZE,
 ) -> list[dict]:
     """
-    Categoriza uma lista de artigos usando a API do Claude.
+    Categoriza uma lista de artigos usando um provedor de LLM.
 
     Adiciona o campo ``categories`` (list[str]) a cada artigo (in-place).
     Artigos já categorizados no cache são ignorados (se use_cache=True).
 
     Args:
         articles: lista de dicts com chaves url, title, body.
-        api_key: chave Anthropic (lê ANTHROPIC_API_KEY se None).
+        provider: instância de LLMProvider. Se None, usa AnthropicProvider (haiku).
+        api_key: (legado) chave Anthropic. Ignorado se provider for passado.
         use_cache: salva/carrega resultados em cache local.
         batch_size: artigos por chamada à API.
 
     Returns:
         A mesma lista com o campo ``categories`` preenchido.
     """
-    import anthropic
+    if provider is None:
+        provider = create_provider("anthropic", api_key=api_key, fast=True)
 
-    key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
-    if not key:
-        raise ValueError("ANTHROPIC_API_KEY não definida.")
-
-    client = anthropic.Anthropic(api_key=key)
     cache = _load_categories_cache() if use_cache else {}
 
     # Separa artigos que ainda não foram categorizados
@@ -195,7 +185,7 @@ def categorize_articles(
             len(batch),
         )
         try:
-            result = _classify_batch(client, batch)
+            result = _classify_batch(provider, batch)
             cache.update(result)
             # Artigos sem retorno recebem "Outros"
             for art in batch:
