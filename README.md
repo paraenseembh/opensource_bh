@@ -5,9 +5,9 @@ Os datasets foram obtidos por meio da ferramenta <a href="https://docs.ckan.org/
 
 ---
 
-## Chatbot de Notícias de BH
+## Chatbot de Decretos Municipais de BH
 
-Chatbot interativo que lê links de notícias de uma planilha do Google Sheets, raspa o conteúdo das matérias e responde perguntas sobre BH usando a API do Claude (Anthropic) ou Google Gemini.
+Chatbot interativo que lê links de decretos e atos normativos do município de Belo Horizonte a partir de uma planilha do Google Sheets, raspa o conteúdo dos documentos e responde perguntas sobre a legislação municipal usando a API do Claude (Anthropic) ou Google Gemini.
 
 Disponível em duas versões: **Python** e **R**.
 
@@ -132,11 +132,11 @@ As opções são idênticas à versão Python.
 
 ---
 
-### Categorias de notícias
+### Categorias legislativas
 
-O módulo de categorização classifica cada artigo em até 3 categorias:
+O módulo de categorização classifica cada decreto em até 3 categorias:
 
-`Saúde` · `Educação` · `Mobilidade e Transporte` · `Segurança Pública` · `Meio Ambiente` · `Cultura e Lazer` · `Política e Gestão Pública` · `Economia e Emprego` · `Habitação e Urbanismo` · `Infraestrutura e Obras` · `Esportes` · `Tecnologia e Inovação` · `Assistência Social` · `Outros`
+`Urbanismo e Zoneamento` · `Obras e Infraestrutura Urbana` · `Saúde Pública` · `Educação` · `Meio Ambiente e Saneamento` · `Tributação e Finanças Públicas` · `Administração Pública` · `Segurança Pública e Defesa Civil` · `Transporte e Mobilidade Urbana` · `Habitação e Regularização Fundiária` · `Assistência Social` · `Cultura, Esporte e Lazer` · `Licitações e Contratos` · `Pessoal e Recursos Humanos` · `Outros`
 
 ---
 

@@ -1,10 +1,10 @@
 # chatbot.R
-# Chatbot de noticias de BH usando um provedor de LLM.
-# Mantem historico de conversa e responde perguntas com base nos artigos.
+# Chatbot de decretos municipais de BH usando um provedor de LLM.
+# Mantem historico de conversa e responde perguntas com base nos documentos oficiais.
 
-.SYSTEM_TEMPLATE <- "Voce e um assistente especializado em noticias de Belo Horizonte (BH), Minas Gerais.
+.SYSTEM_TEMPLATE <- "Voce e um assistente especializado em legislacao e atos normativos do municipio de Belo Horizonte (BH), Minas Gerais.
 
-Voce foi alimentado com as seguintes noticias recentes, organizadas por area tematica:
+Voce foi alimentado com os seguintes decretos e documentos oficiais municipais, organizados por area:
 
 {news_context}
 
@@ -12,13 +12,13 @@ Voce foi alimentado com as seguintes noticias recentes, organizadas por area tem
 
 INSTRUCOES:
 - Responda SEMPRE em portugues do Brasil.
-- Baseie suas respostas nas noticias fornecidas acima.
-- Se a informacao pedida nao estiver nas noticias, diga claramente que nao encontrou essa informacao.
-- Ao citar uma noticia, mencione a area tematica, as categorias (se disponiveis) e o titulo.
-- Seja objetivo, informativo e amigavel.
-- Voce pode cruzar informacoes de diferentes areas quando fizer sentido.
-- Se perguntado sobre um tema amplo, faca um resumo das noticias relevantes.
-- Quando o usuario perguntar por uma categoria (ex: 'Saude', 'Meio Ambiente'), filtre pelo campo de categorias.
+- Baseie suas respostas nos decretos e documentos fornecidos acima.
+- Se a informacao pedida nao estiver nos documentos, diga claramente que nao encontrou essa informacao nas fontes disponiveis.
+- Ao citar um decreto, mencione a categoria legislativa, o numero ou titulo do ato e a data (quando disponivel).
+- Seja objetivo, preciso e claro — trata-se de legislacao municipal.
+- Voce pode relacionar decretos de diferentes categorias quando fizer sentido.
+- Se perguntado sobre um tema amplo, faca um resumo dos atos normativos relevantes.
+- Quando o usuario perguntar por uma categoria (ex: 'Urbanismo', 'Licitacoes'), filtre os documentos pelo campo de categorias.
 "
 
 # ---------------------------------------------------------------------------
@@ -68,10 +68,10 @@ chatbot_get_areas <- function(bot) {
 
 chatbot_summary <- function(bot) {
   by_area <- table(sapply(bot$articles, function(a) a$area %||% "Geral"))
-  lines <- c(sprintf("Noticias carregadas (%s):", bot$provider$name))
+  lines <- c(sprintf("Decretos carregados (%s):", bot$provider$name))
   for (area in sort(names(by_area))) {
-    lines <- c(lines, sprintf("  * %s: %d artigo(s)", area, by_area[[area]]))
+    lines <- c(lines, sprintf("  * %s: %d documento(s)", area, by_area[[area]]))
   }
-  lines <- c(lines, sprintf("  Total: %d artigos", length(bot$articles)))
+  lines <- c(lines, sprintf("  Total: %d documentos", length(bot$articles)))
   paste(lines, collapse = "\n")
 }

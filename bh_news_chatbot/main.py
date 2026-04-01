@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 """
-Chatbot de Notícias de Belo Horizonte
-======================================
+Chatbot de Decretos Municipais de Belo Horizonte
+=================================================
 
-Lê uma planilha do Google Sheets com links de notícias de BH (organizadas
-por área), raspa o conteúdo das matérias e sobe um chatbot interativo
-alimentado pela API do Claude (Anthropic).
+Lê uma planilha do Google Sheets com links de decretos e atos normativos
+do município de BH (organizados por área), raspa o conteúdo dos documentos
+e sobe um chatbot interativo alimentado pela API do Claude ou Gemini.
 
 Uso:
     python main.py [--refresh] [--max-per-area N] [--api-key KEY]
 
 Variáveis de ambiente:
-    ANTHROPIC_API_KEY  — chave de API da Anthropic (obrigatório)
+    ANTHROPIC_API_KEY  — chave de API da Anthropic (obrigatório se --provider anthropic)
+    GEMINI_API_KEY     — chave de API do Google Gemini (obrigatório se --provider gemini)
     BH_SHEET_ID        — ID da planilha (opcional, usa o padrão se omitido)
 """
 
@@ -39,36 +40,36 @@ log = logging.getLogger(__name__)
 
 BANNER = r"""
 ╔══════════════════════════════════════════════════════════╗
-║     🏙️  Chatbot de Notícias de Belo Horizonte 🏙️        ║
-║         Alimentado pelo Claude (Anthropic)               ║
+║   🏛️  Chatbot de Decretos Municipais de BH  🏛️          ║
+║        Alimentado pelo Claude / Gemini                   ║
 ╚══════════════════════════════════════════════════════════╝
 """
 
 HELP_TEXT = """
 Comandos especiais:
   /ajuda      — mostra esta mensagem
-  /areas      — lista as áreas temáticas da planilha
-  /categorias — mostra distribuição de artigos por categoria de conteúdo
-  /resumo     — mostra quantos artigos foram carregados por área
+  /areas      — lista as áreas da planilha
+  /categorias — mostra distribuição de decretos por categoria legislativa
+  /resumo     — mostra quantos documentos foram carregados por área
   /reiniciar  — reinicia o histórico da conversa
   /sair       — encerra o chatbot
 
 Exemplos de perguntas:
-  "Quais são as últimas notícias de saúde em BH?"
-  "O que está acontecendo no transporte público?"
-  "Resumo das notícias de educação"
-  "Quais notícias falam sobre meio ambiente?"
+  "Quais decretos tratam de urbanismo e zoneamento?"
+  "Há atos normativos sobre licitações recentes?"
+  "Resumo dos decretos de habitação e regularização fundiária"
+  "Quais documentos falam sobre meio ambiente e saneamento?"
 """
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Chatbot de notícias de BH baseado em planilha do Google Sheets"
+        description="Chatbot de decretos municipais de BH baseado em planilha do Google Sheets"
     )
     parser.add_argument(
         "--refresh",
         action="store_true",
-        help="Força re-download das notícias (ignora cache)",
+        help="Força re-download dos documentos (ignora cache)",
     )
     parser.add_argument(
         "--max-per-area",

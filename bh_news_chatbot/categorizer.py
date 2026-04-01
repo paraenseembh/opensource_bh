@@ -1,11 +1,11 @@
 """
-Categorizador de notícias de Belo Horizonte.
+Categorizador de decretos municipais de Belo Horizonte.
 
-Usa a API do Claude para analisar o conteúdo de cada artigo e atribuir
-uma ou mais categorias temáticas de um vocabulário controlado.
+Usa a API do Claude para analisar o conteúdo de cada decreto e atribuir
+uma ou mais categorias legislativas de um vocabulário controlado.
 
 O processamento é feito em lotes para reduzir custo e latência.
-O resultado é persistido no cache junto com os demais dados do artigo.
+O resultado é persistido no cache junto com os demais dados do documento.
 """
 
 import json
@@ -18,21 +18,22 @@ from llm_provider import LLMProvider, create_provider
 
 log = logging.getLogger(__name__)
 
-# Taxonomia de categorias relevantes para BH
+# Taxonomia de categorias legislativas municipais de BH
 CATEGORIES = [
-    "Saúde",
+    "Urbanismo e Zoneamento",
+    "Obras e Infraestrutura Urbana",
+    "Saúde Pública",
     "Educação",
-    "Mobilidade e Transporte",
-    "Segurança Pública",
-    "Meio Ambiente",
-    "Cultura e Lazer",
-    "Política e Gestão Pública",
-    "Economia e Emprego",
-    "Habitação e Urbanismo",
-    "Infraestrutura e Obras",
-    "Esportes",
-    "Tecnologia e Inovação",
+    "Meio Ambiente e Saneamento",
+    "Tributação e Finanças Públicas",
+    "Administração Pública",
+    "Segurança Pública e Defesa Civil",
+    "Transporte e Mobilidade Urbana",
+    "Habitação e Regularização Fundiária",
     "Assistência Social",
+    "Cultura, Esporte e Lazer",
+    "Licitações e Contratos",
+    "Pessoal e Recursos Humanos",
     "Outros",
 ]
 
@@ -41,8 +42,9 @@ BATCH_SIZE = 15  # artigos por chamada à API
 CATEGORIES_CACHE_FILE = Path(__file__).parent / "cache" / "categories_cache.json"
 
 _SYSTEM_PROMPT = f"""\
-Você é um classificador de notícias. Dada uma lista de artigos de Belo Horizonte (BH),
-atribua a cada um entre 1 e 3 categorias do seguinte vocabulário controlado:
+Você é um classificador de atos normativos municipais. Dada uma lista de decretos ou documentos \
+oficiais do município de Belo Horizonte (BH), atribua a cada um entre 1 e 3 categorias do \
+seguinte vocabulário controlado de legislação municipal:
 
 {json.dumps(CATEGORIES, ensure_ascii=False, indent=2)}
 
@@ -54,7 +56,7 @@ Responda SOMENTE com um objeto JSON no formato:
 
 Regras:
 - Use apenas categorias do vocabulário acima (exatamente como escritas).
-- Atribua no mínimo 1 e no máximo 3 categorias por artigo.
+- Atribua no mínimo 1 e no máximo 3 categorias por decreto.
 - Se o conteúdo não se encaixar em nenhuma categoria, use "Outros".
 - Não inclua explicações fora do JSON.
 """

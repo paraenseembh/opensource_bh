@@ -1,6 +1,6 @@
-# Chatbot de Notícias de BH — Python
+# Chatbot de Decretos Municipais de BH — Python
 
-Chatbot interativo que lê links de notícias de uma planilha do Google Sheets, raspa o conteúdo das matérias e responde perguntas sobre BH usando Claude (Anthropic) ou Google Gemini.
+Chatbot interativo que lê links de decretos e atos normativos do município de Belo Horizonte a partir de uma planilha do Google Sheets, raspa o conteúdo dos documentos e responde perguntas sobre a legislação municipal usando Claude (Anthropic) ou Google Gemini.
 
 ---
 
@@ -93,23 +93,24 @@ python main.py --log-level DEBUG
 
 ---
 
-## Categorias de conteúdo
+## Categorias legislativas
 
-Quando `--categorize` é usado, cada artigo recebe até 3 categorias automaticamente:
+Quando `--categorize` é usado, cada decreto recebe até 3 categorias automaticamente:
 
-- Saúde
+- Urbanismo e Zoneamento
+- Obras e Infraestrutura Urbana
+- Saúde Pública
 - Educação
-- Mobilidade e Transporte
-- Segurança Pública
-- Meio Ambiente
-- Cultura e Lazer
-- Política e Gestão Pública
-- Economia e Emprego
-- Habitação e Urbanismo
-- Infraestrutura e Obras
-- Esportes
-- Tecnologia e Inovação
+- Meio Ambiente e Saneamento
+- Tributação e Finanças Públicas
+- Administração Pública
+- Segurança Pública e Defesa Civil
+- Transporte e Mobilidade Urbana
+- Habitação e Regularização Fundiária
 - Assistência Social
+- Cultura, Esporte e Lazer
+- Licitações e Contratos
+- Pessoal e Recursos Humanos
 - Outros
 
 ---
