@@ -19,8 +19,8 @@ from urllib.error import URLError, HTTPError
 
 log = logging.getLogger(__name__)
 
-SPREADSHEET_ID = "1eP6k-lPjkqxYR7BsTMF9xGFSQhGUhxul"
-DEFAULT_GID = "139172426"
+SPREADSHEET_ID = "1GcHLEuIXtRFPy4md6o_EdSBcDp69p3Y3"
+DEFAULT_GID = "0"
 
 # URL via gviz — funciona para planilhas públicas sem autenticação
 GVIZ_CSV_URL = (
