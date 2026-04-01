@@ -1,7 +1,8 @@
 """
-Chatbot de notícias de Belo Horizonte.
+Chatbot de decretos municipais de Belo Horizonte.
 
-Recebe os artigos raspados como contexto e responde perguntas sobre BH.
+Recebe os documentos raspados como contexto e responde perguntas sobre
+legislação e atos normativos do município de BH.
 Suporta múltiplos provedores de LLM via LLMProvider (Anthropic, Gemini…).
 """
 
@@ -13,9 +14,9 @@ from llm_provider import LLMProvider, create_provider
 
 log = logging.getLogger(__name__)
 
-SYSTEM_PROMPT_TEMPLATE = """Você é um assistente especializado em notícias de Belo Horizonte (BH), Minas Gerais.
+SYSTEM_PROMPT_TEMPLATE = """Você é um assistente especializado em legislação e atos normativos do município de Belo Horizonte (BH), Minas Gerais.
 
-Você foi treinado com as seguintes notícias recentes, organizadas por área temática:
+Você foi alimentado com os seguintes decretos e documentos oficiais municipais, organizados por área:
 
 {news_context}
 
@@ -23,13 +24,13 @@ Você foi treinado com as seguintes notícias recentes, organizadas por área te
 
 INSTRUÇÕES:
 - Responda SEMPRE em português do Brasil.
-- Baseie suas respostas nas notícias fornecidas acima.
-- Se a informação pedida não estiver nas notícias, diga claramente que não encontrou essa informação nas fontes disponíveis.
-- Ao citar uma notícia, mencione a área temática, as categorias (se disponíveis) e o título.
-- Seja objetivo, informativo e amigável.
-- Você pode cruzar informações de diferentes áreas quando fizer sentido.
-- Se perguntado sobre um tema amplo, faça um resumo das notícias relevantes.
-- Quando o usuário perguntar por uma categoria específica (ex: "Saúde", "Meio Ambiente"), filtre as notícias pelo campo de categorias.
+- Baseie suas respostas nos decretos e documentos fornecidos acima.
+- Se a informação pedida não estiver nos documentos, diga claramente que não encontrou essa informação nas fontes disponíveis.
+- Ao citar um decreto, mencione a categoria legislativa, o número ou título do ato e a data (quando disponível).
+- Seja objetivo, preciso e claro — trate-se de legislação municipal.
+- Você pode relacionar decretos de diferentes categorias quando fizer sentido.
+- Se perguntado sobre um tema amplo, faça um resumo dos atos normativos relevantes.
+- Quando o usuário perguntar por uma categoria (ex: "Urbanismo", "Licitações"), filtre os documentos pelo campo de categorias.
 """
 
 
@@ -97,8 +98,8 @@ class BHNewsChatbot:
             area = art.get("area", "Geral")
             by_area[area] = by_area.get(area, 0) + 1
 
-        lines = [f"Notícias carregadas ({self._provider.name}):"]
+        lines = [f"Decretos carregados ({self._provider.name}):"]
         for area, count in sorted(by_area.items()):
-            lines.append(f"  • {area}: {count} artigo(s)")
-        lines.append(f"  Total: {len(self._articles)} artigos")
+            lines.append(f"  • {area}: {count} documento(s)")
+        lines.append(f"  Total: {len(self._articles)} documentos")
         return "\n".join(lines)

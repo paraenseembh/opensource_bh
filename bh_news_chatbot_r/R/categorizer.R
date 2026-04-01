@@ -1,29 +1,31 @@
 # categorizer.R
-# Categoriza noticias de BH com base em seu conteudo usando um provedor de LLM.
-# Processa artigos em lotes e persiste resultados em cache JSON.
+# Categoriza decretos municipais de BH com base em seu conteudo usando um provedor de LLM.
+# Processa documentos em lotes e persiste resultados em cache JSON.
 
 CATEGORIES <- c(
-  "Saude",
+  "Urbanismo e Zoneamento",
+  "Obras e Infraestrutura Urbana",
+  "Saude Publica",
   "Educacao",
-  "Mobilidade e Transporte",
-  "Seguranca Publica",
-  "Meio Ambiente",
-  "Cultura e Lazer",
-  "Politica e Gestao Publica",
-  "Economia e Emprego",
-  "Habitacao e Urbanismo",
-  "Infraestrutura e Obras",
-  "Esportes",
-  "Tecnologia e Inovacao",
+  "Meio Ambiente e Saneamento",
+  "Tributacao e Financas Publicas",
+  "Administracao Publica",
+  "Seguranca Publica e Defesa Civil",
+  "Transporte e Mobilidade Urbana",
+  "Habitacao e Regularizacao Fundiaria",
   "Assistencia Social",
+  "Cultura, Esporte e Lazer",
+  "Licitacoes e Contratos",
+  "Pessoal e Recursos Humanos",
   "Outros"
 )
 
 BATCH_SIZE <- 15L
 
 .CATEGORIZER_SYSTEM <- paste0(
-  "Voce e um classificador de noticias. Dada uma lista de artigos de Belo Horizonte (BH), ",
-  "atribua a cada um entre 1 e 3 categorias do seguinte vocabulario controlado:\n\n",
+  "Voce e um classificador de atos normativos municipais. Dada uma lista de decretos ou ",
+  "documentos oficiais do municipio de Belo Horizonte (BH), atribua a cada um entre 1 e 3 ",
+  "categorias do seguinte vocabulario controlado de legislacao municipal:\n\n",
   jsonlite::toJSON(CATEGORIES, auto_unbox = FALSE),
   "\n\nResponda SOMENTE com um objeto JSON no formato:\n",
   '{"<url>": ["Categoria1", "Categoria2"], "<url2>": ["Categoria1"]}',

@@ -35,24 +35,25 @@ CACHE_FILE <- file.path(CACHE_DIR, "news_cache.json")
 
 BANNER <- "
 +----------------------------------------------------------+
-|    Chatbot de Noticias de Belo Horizonte (R)             |
-|    Alimentado por Claude / Gemini                        |
+|   Chatbot de Decretos Municipais de BH (R)               |
+|   Alimentado por Claude / Gemini                         |
 +----------------------------------------------------------+
 "
 
 HELP_TEXT <- "
 Comandos especiais:
   /ajuda      — mostra esta mensagem
-  /areas      — lista as areas tematicas da planilha
-  /categorias — distribuicao de artigos por categoria
-  /resumo     — artigos carregados por area
+  /areas      — lista as areas da planilha
+  /categorias — distribuicao de decretos por categoria legislativa
+  /resumo     — documentos carregados por area
   /reiniciar  — reinicia o historico da conversa
   /sair       — encerra o chatbot
 
 Exemplos de perguntas:
-  'Quais sao as ultimas noticias de saude em BH?'
-  'O que esta acontecendo no transporte publico?'
-  'Resumo das noticias de educacao'
+  'Quais decretos tratam de urbanismo e zoneamento?'
+  'Ha atos normativos sobre licitacoes recentes?'
+  'Resumo dos decretos de habitacao e regularizacao fundiaria'
+  'Quais documentos falam sobre meio ambiente e saneamento?'
 "
 
 # ---------------------------------------------------------------------------
