@@ -5,8 +5,8 @@
 #   Arquivo -> Compartilhar -> "Qualquer pessoa com o link" -> Leitor
 #   OU Arquivo -> Publicar na web -> CSV -> Publicar
 
-SPREADSHEET_ID <- "1eP6k-lPjkqxYR7BsTMF9xGFSQhGUhxul"
-DEFAULT_GID    <- "139172426"
+SPREADSHEET_ID <- "1GcHLEuIXtRFPy4md6o_EdSBcDp69p3Y3"
+DEFAULT_GID    <- "0"
 
 GVIZ_CSV_URL <- "https://docs.google.com/spreadsheets/d/%s/gviz/tq?tqx=out:csv&gid=%s"
 EXPORT_CSV_URL <- "https://docs.google.com/spreadsheets/d/%s/export?format=csv&gid=%s"
