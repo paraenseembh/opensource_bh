@@ -15,8 +15,8 @@ log = logging.getLogger(__name__)
 # Modelos padrão por provedor
 ANTHROPIC_CHAT_MODEL = "claude-sonnet-4-6"
 ANTHROPIC_FAST_MODEL = "claude-haiku-4-5-20251001"
-GEMINI_CHAT_MODEL = "gemini-1.5-pro"
-GEMINI_FAST_MODEL = "gemini-1.5-flash"
+GEMINI_CHAT_MODEL = "gemini-2.0-flash"
+GEMINI_FAST_MODEL = "gemini-2.0-flash"
 
 
 class LLMProvider(ABC):
@@ -97,17 +97,20 @@ class AnthropicProvider(LLMProvider):
 # Google Gemini
 # ---------------------------------------------------------------------------
 
-def _to_gemini_history(messages: list[dict]) -> list[dict]:
-    """Converte histórico no formato Anthropic para o formato Gemini."""
-    result = []
-    for msg in messages:
-        role = "model" if msg["role"] == "assistant" else "user"
-        result.append({"role": role, "parts": [msg["content"]]})
-    return result
+def _to_gemini_contents(messages: list[dict]):
+    """Converte histórico no formato Anthropic para lista de Content do google.genai."""
+    from google.genai import types
+    return [
+        types.Content(
+            role="model" if msg["role"] == "assistant" else "user",
+            parts=[types.Part(text=msg["content"])],
+        )
+        for msg in messages
+    ]
 
 
 class GeminiProvider(LLMProvider):
-    """Provedor usando a API do Google Gemini."""
+    """Provedor usando a API do Google Gemini (SDK google-genai)."""
 
     def __init__(
         self,
@@ -123,21 +126,19 @@ class GeminiProvider(LLMProvider):
             )
         self._model = model
         self._max_tokens = max_tokens
-        self._configured = False
+        self._client = None
 
-    def _configure(self):
-        if not self._configured:
-            import google.generativeai as genai
-            genai.configure(api_key=self._api_key)
-            self._configured = True
+    def _get_client(self):
+        if self._client is None:
+            from google import genai
+            self._client = genai.Client(api_key=self._api_key)
+        return self._client
 
-    def _build_model(self, system: str):
-        import google.generativeai as genai
-        self._configure()
-        return genai.GenerativeModel(
-            model_name=self._model,
+    def _config(self, system: str):
+        from google.genai import types
+        return types.GenerateContentConfig(
             system_instruction=system,
-            generation_config={"max_output_tokens": self._max_tokens},
+            max_output_tokens=self._max_tokens,
         )
 
     @property
@@ -145,21 +146,23 @@ class GeminiProvider(LLMProvider):
         return f"Google Gemini ({self._model})"
 
     def complete(self, system: str, messages: list[dict]) -> str:
-        model = self._build_model(system)
-        history = _to_gemini_history(messages[:-1])
-        chat = model.start_chat(history=history)
-        response = chat.send_message(messages[-1]["content"])
+        client = self._get_client()
+        response = client.models.generate_content(
+            model=self._model,
+            config=self._config(system),
+            contents=_to_gemini_contents(messages),
+        )
         return response.text
 
     def stream(self, system: str, messages: list[dict]) -> Iterator[str]:
-        model = self._build_model(system)
-        history = _to_gemini_history(messages[:-1])
-        chat = model.start_chat(history=history)
-        response = chat.send_message(messages[-1]["content"], stream=True)
-        for chunk in response:
-            text = getattr(chunk, "text", None)
-            if text:
-                yield text
+        client = self._get_client()
+        for chunk in client.models.generate_content_stream(
+            model=self._model,
+            config=self._config(system),
+            contents=_to_gemini_contents(messages),
+        ):
+            if chunk.text:
+                yield chunk.text
 
 
 # ---------------------------------------------------------------------------
