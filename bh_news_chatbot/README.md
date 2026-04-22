@@ -138,6 +138,97 @@ rm cache/news_cache.json cache/categories_cache.json
 
 ---
 
+## Verificação e testes das APIs
+
+O script `test_api.py` verifica se as APIs de IA estão acessíveis e se o tratamento de erros funciona corretamente. Ele roda dois grupos de testes:
+
+| Grupo | O que testa | Precisa de chave válida? |
+|---|---|---|
+| **Funcionais** | `create_provider()`, `complete()`, `stream()` | Sim |
+| **Erros esperados** | chave vazia, chave inválida, modelo inexistente, provider desconhecido | Não (exceto modelo inexistente) |
+
+### Como executar
+
+```bash
+# Testa ambos os provedores (funcionais + erros)
+python bh_news_chatbot/test_api.py
+
+# Testa apenas um provedor
+python bh_news_chatbot/test_api.py --provider anthropic
+python bh_news_chatbot/test_api.py --provider gemini
+
+# Apenas os testes de erros esperados (não precisa de chave)
+python bh_news_chatbot/test_api.py --only-errors
+```
+
+### Saída esperada (com chave configurada)
+
+```
+Verificação de APIs — BH News Chatbot
+───────────────────────────────────────────────────────
+  ANTHROPIC_API_KEY : configurada
+  GEMINI_API_KEY    : configurada
+
+Geral
+───────────────────────────────────────────────────────
+  erros gerais (independente de provedor)
+  ✓ provider desconhecido → ValueError
+  ✓ chave vazia anthropic → ValueError
+  ✓ chave vazia gemini → ValueError
+
+Anthropic
+───────────────────────────────────────────────────────
+  testes funcionais
+  ✓ create_provider()
+  ✓ complete()
+  ✓ stream()
+
+  erros esperados
+  ✓ chave vazia → ValueError
+  ✓ chave inválida → complete() falha
+  ✓ chave inválida → stream() falha
+  ✓ modelo inexistente → complete() falha
+...
+  PASSOU  N/N teste(s)
+```
+
+### Casos de erro testados
+
+| Caso | Comportamento esperado |
+|---|---|
+| `create_provider("openai", ...)` | `ValueError`: provider desconhecido |
+| `create_provider("anthropic", api_key="")` | `ValueError`: chave não configurada |
+| `complete()` com chave inválida | Exceção de autenticação da API |
+| `stream()` com chave inválida | Exceção de autenticação da API |
+| `complete()` com modelo inexistente | Exceção de modelo não encontrado |
+
+> Os testes de erro **passam quando a exceção esperada é lançada**. Se nenhuma exceção for lançada, o teste falha.
+
+---
+
+## Depuração do cache
+
+O script `debug.py` inspeciona os arquivos de cache sem precisar executar o chatbot completo:
+
+```bash
+# Resumo: total de artigos, distribuição por área, falhas
+python bh_news_chatbot/debug.py
+
+# Conteúdo completo de cada artigo
+python bh_news_chatbot/debug.py --verbose
+
+# Inspecionar uma URL específica
+python bh_news_chatbot/debug.py --url https://...
+
+# Listar apenas URLs que falharam ou ficaram sem conteúdo
+python bh_news_chatbot/debug.py --failures
+
+# Exportar todos os artigos para um arquivo JSON
+python bh_news_chatbot/debug.py --export artigos.json
+```
+
+---
+
 ## Planilha Google Sheets
 
 A planilha deve estar pública para que o scraper consiga acessá-la:
