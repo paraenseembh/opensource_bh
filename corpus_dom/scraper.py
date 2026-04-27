@@ -177,9 +177,15 @@ def scrape_todos(
     delay: float = 1.5,
     max_retries: int = 3,
     timeout: int = 30,
+    cache=None,
 ):
     """
     Itera sobre o DataFrame e preenche col_destino com o texto coletado.
+
+    Se `cache` (instância de CacheLocal) for fornecido:
+      - URLs já presentes no cache são preenchidas direto, sem requisição HTTP.
+      - Novos textos são gravados no cache imediatamente após cada coleta.
+
     Registra progresso a cada 50 registros.
     """
     if col_link not in df.columns:
@@ -189,14 +195,47 @@ def scrape_todos(
     total = len(df)
     df[col_destino] = None
 
+    # Determina quais URLs precisam de requisição HTTP
+    urls_validas = [
+        row.get(col_link)
+        for _, row in df.iterrows()
+        if isinstance(row.get(col_link), str) and row.get(col_link, "").startswith("http")
+    ]
+    if cache:
+        pendentes = set(cache.pendentes(urls_validas))
+        cache_hits = len(urls_validas) - len(pendentes)
+        logger.info(
+            "Cache: %d/%d documentos já coletados. Requisições HTTP necessárias: %d.",
+            cache_hits, len(urls_validas), len(pendentes),
+        )
+    else:
+        pendentes = set(urls_validas)
+
     for idx, row in df.iterrows():
         url = row.get(col_link)
         if not isinstance(url, str) or not url.startswith("http"):
             logger.debug("Linha %d: URL inválida ou ausente (%s). Pulando.", idx, url)
             continue
 
+        # Cache hit — preenche sem HTTP
+        if cache and cache.existe(url):
+            record = cache.ler(url)
+            df.at[idx, col_destino] = record.get("texto") if record else None
+            continue
+
+        # Cache miss — faz a requisição
         texto = buscar_texto(url, delay=delay, max_retries=max_retries, timeout=timeout)
         df.at[idx, col_destino] = texto
+
+        if cache and texto:
+            metadados = {
+                "TIPO ATO": row.get("TIPO ATO"),
+                "Nº":       row.get("Nº"),
+                "DATA DOM": str(row.get("DATA DOM") or ""),
+                "ÓRGÃO":    row.get("ÓRGÃO") or row.get("orgao_norm", ""),
+                "EMENTA":   row.get("EMENTA"),
+            }
+            cache.salvar(url, texto, metadados)
 
         if (idx + 1) % 50 == 0:
             coletados = df[col_destino].notna().sum()
