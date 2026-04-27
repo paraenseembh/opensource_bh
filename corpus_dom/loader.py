@@ -3,7 +3,9 @@ loader.py — Carga dos dados processados no MySQL e exportação do corpus.
 
 Responsabilidades:
   - Criar conexão com o banco a partir de variáveis de ambiente
-  - Criar a tabela atos_dom_bh se ainda não existir
+  - Criar a tabela atos_dom_bh se ainda não existir (schema principal)
+  - Criar tabelas satélite para Instruções de Serviço:
+      unidades_org, bases_legais_is, dispositivos_is, anexos_is
   - Inserir ou atualizar (upsert) registros via INSERT … ON DUPLICATE KEY UPDATE
   - Serializar campos JSON (refs_legais) e tratar tipos Python/MySQL
   - Exportar corpus em formato JSONL e CSV para uso externo (NLP, Power BI)
@@ -92,6 +94,169 @@ def garantir_tabela(conn: MySQLConnection) -> None:
         cur.execute(_DDL)
     conn.commit()
     logger.info("Tabela atos_dom_bh verificada/criada.")
+
+
+# ── DDL das tabelas satélite (Instrução de Serviço) ───────────────────────────
+
+_DDL_UNIDADES_ORG = """
+CREATE TABLE IF NOT EXISTS unidades_org (
+    id                    INT AUTO_INCREMENT PRIMARY KEY,
+    ato_id                INT NOT NULL,
+    operacao              ENUM('CRIADA','ALTERADA','EXCLUÍDA') NOT NULL,
+    denominacao           VARCHAR(255),
+    sigla                 VARCHAR(50),
+    codigo_opus           VARCHAR(20),
+    digito_verificador    CHAR(1),
+    nivel                 VARCHAR(50),
+    tipo_unidade          VARCHAR(100),
+    vinculacao            VARCHAR(255),
+    -- Preenchido apenas quando operacao = 'ALTERADA'
+    denominacao_anterior  VARCHAR(255),
+    sigla_anterior        VARCHAR(50),
+    codigo_opus_anterior  VARCHAR(20),
+    CONSTRAINT fk_unidades_ato FOREIGN KEY (ato_id)
+        REFERENCES atos_dom_bh(id) ON DELETE CASCADE,
+    INDEX idx_ato_operacao (ato_id, operacao),
+    INDEX idx_opus (codigo_opus)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+"""
+
+_DDL_BASES_LEGAIS_IS = """
+CREATE TABLE IF NOT EXISTS bases_legais_is (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    ato_id      INT NOT NULL,
+    referencia  VARCHAR(500) NOT NULL,
+    CONSTRAINT fk_bases_ato FOREIGN KEY (ato_id)
+        REFERENCES atos_dom_bh(id) ON DELETE CASCADE,
+    INDEX idx_bl_ato (ato_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+"""
+
+_DDL_DISPOSITIVOS_IS = """
+CREATE TABLE IF NOT EXISTS dispositivos_is (
+    id        INT AUTO_INCREMENT PRIMARY KEY,
+    ato_id    INT NOT NULL,
+    numero    SMALLINT,
+    conteudo  TEXT NOT NULL,
+    CONSTRAINT fk_disp_ato FOREIGN KEY (ato_id)
+        REFERENCES atos_dom_bh(id) ON DELETE CASCADE,
+    INDEX idx_disp_ato (ato_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+"""
+
+_DDL_ANEXOS_IS = """
+CREATE TABLE IF NOT EXISTS anexos_is (
+    id      INT AUTO_INCREMENT PRIMARY KEY,
+    ato_id  INT NOT NULL,
+    nome    VARCHAR(255) NOT NULL,
+    url     VARCHAR(512),
+    CONSTRAINT fk_anexos_ato FOREIGN KEY (ato_id)
+        REFERENCES atos_dom_bh(id) ON DELETE CASCADE,
+    INDEX idx_anx_ato (ato_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+"""
+
+_TABELAS_IS = [_DDL_UNIDADES_ORG, _DDL_BASES_LEGAIS_IS, _DDL_DISPOSITIVOS_IS, _DDL_ANEXOS_IS]
+
+
+def garantir_tabelas_is(conn: MySQLConnection) -> None:
+    """Cria as 4 tabelas satélite de IS caso não existam."""
+    with conn.cursor() as cur:
+        for ddl in _TABELAS_IS:
+            cur.execute(ddl)
+    conn.commit()
+    logger.info("Tabelas satélite IS verificadas/criadas.")
+
+
+# ── Carga das entidades de IS ─────────────────────────────────────────────────
+
+def _insert_many(conn: MySQLConnection, sql: str, registros: list[dict]) -> int:
+    """Executa executemany e retorna rowcount."""
+    if not registros:
+        return 0
+    with conn.cursor() as cur:
+        cur.executemany(sql, registros)
+    conn.commit()
+    return cur.rowcount
+
+
+_SQL_UNIDADE = """
+INSERT INTO unidades_org
+    (ato_id, operacao, denominacao, sigla, codigo_opus, digito_verificador,
+     nivel, tipo_unidade, vinculacao,
+     denominacao_anterior, sigla_anterior, codigo_opus_anterior)
+VALUES
+    (%(ato_id)s, %(operacao)s, %(denominacao)s, %(sigla)s, %(codigo_opus)s,
+     %(digito_verificador)s, %(nivel)s, %(tipo_unidade)s, %(vinculacao)s,
+     %(denominacao_anterior)s, %(sigla_anterior)s, %(codigo_opus_anterior)s)
+"""
+
+_SQL_BASE_LEGAL = """
+INSERT INTO bases_legais_is (ato_id, referencia) VALUES (%(ato_id)s, %(referencia)s)
+"""
+
+_SQL_DISPOSITIVO = """
+INSERT INTO dispositivos_is (ato_id, numero, conteudo) VALUES (%(ato_id)s, %(numero)s, %(conteudo)s)
+"""
+
+_SQL_ANEXO = """
+INSERT INTO anexos_is (ato_id, nome, url) VALUES (%(ato_id)s, %(nome)s, %(url)s)
+"""
+
+# Apaga registros anteriores do ato antes de reinserir (idempotência)
+_SQL_DELETE_IS = {
+    "unidades_org":    "DELETE FROM unidades_org    WHERE ato_id = %s",
+    "bases_legais_is": "DELETE FROM bases_legais_is WHERE ato_id = %s",
+    "dispositivos_is": "DELETE FROM dispositivos_is WHERE ato_id = %s",
+    "anexos_is":       "DELETE FROM anexos_is       WHERE ato_id = %s",
+}
+
+
+def _limpar_is_anterior(conn: MySQLConnection, ato_id: int) -> None:
+    """Remove todos os registros satélite do ato antes de reinserir."""
+    with conn.cursor() as cur:
+        for sql in _SQL_DELETE_IS.values():
+            cur.execute(sql, (ato_id,))
+    conn.commit()
+
+
+def _dataclass_para_dict(obj) -> dict:
+    """Converte dataclass em dict sem importar dataclasses (compatibilidade)."""
+    return {k: v for k, v in vars(obj).items()}
+
+
+def carregar_is(conn: MySQLConnection, resultado_is: dict) -> None:
+    """
+    Persiste o resultado de extractor_is.extrair_is() nas 4 tabelas satélite.
+
+    resultado_is deve conter as chaves:
+      'unidades', 'bases_legais', 'dispositivos', 'anexos'
+    com listas de dataclasses de extractor_is.
+    """
+    ato_id = (
+        resultado_is["unidades"][0].ato_id
+        if resultado_is["unidades"]
+        else (resultado_is["bases_legais"][0].ato_id if resultado_is["bases_legais"] else None)
+    )
+    if ato_id is None:
+        logger.warning("carregar_is: não foi possível determinar ato_id. Nenhum dado inserido.")
+        return
+
+    _limpar_is_anterior(conn, ato_id)
+
+    n_u = _insert_many(conn, _SQL_UNIDADE,
+                       [_dataclass_para_dict(u) for u in resultado_is["unidades"]])
+    n_b = _insert_many(conn, _SQL_BASE_LEGAL,
+                       [_dataclass_para_dict(b) for b in resultado_is["bases_legais"]])
+    n_d = _insert_many(conn, _SQL_DISPOSITIVO,
+                       [_dataclass_para_dict(d) for d in resultado_is["dispositivos"]])
+    n_a = _insert_many(conn, _SQL_ANEXO,
+                       [_dataclass_para_dict(a) for a in resultado_is["anexos"]])
+
+    logger.info(
+        "IS ato_id=%d carregada: %d unidades | %d bases legais | %d dispositivos | %d anexos",
+        ato_id, n_u, n_b, n_d, n_a,
+    )
 
 
 # ── Serialização de linha ─────────────────────────────────────────────────────
