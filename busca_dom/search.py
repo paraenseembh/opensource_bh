@@ -59,7 +59,7 @@ def _normalizar_data(valor) -> Optional[pd.Timestamp]:
     if isinstance(valor, pd.Timestamp):
         return valor
     try:
-        return pd.to_datetime(str(valor), dayfirst=True, errors="coerce")
+        return pd.to_datetime(str(valor), format="%d/%m/%Y", errors="coerce")
     except Exception:
         return None
 

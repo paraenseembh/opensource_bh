@@ -31,7 +31,7 @@ st.set_page_config(
 )
 
 _CACHE_INDICE = Path(__file__).parent / "cache" / "indice.pkl"
-_CSV_PADRAO   = Path(__file__).parent.parent / "corpus_dom" / "dados" / "indice_dom_bh.csv"
+_CSV_PADRAO   = Path(__file__).parent.parent / "legislacao_2026_04.csv"
 
 
 # ── Carregamento de dados (cacheado pela sessão Streamlit) ────────────────────
@@ -61,6 +61,14 @@ def carregar_indice(csv_path: str) -> IndiceDOM:
     if df is None:
         st.error(f"Não foi possível ler o arquivo: {csv_path}")
         st.stop()
+
+    # Remove colunas sem nome (pandas renomeia para "Unnamed: N" ao ler Excel)
+    df = df.loc[:, ~df.columns.str.startswith("Unnamed:")]
+
+    # Remove espaços extras em todas as colunas de texto (ex: "DECRETO " → "DECRETO")
+    str_cols = [c for c in df.columns if df[c].dtype == object]
+    for col in str_cols:
+        df[col] = df[col].str.strip()
 
     # Converte datas
     for col in ("DATA ASSINATURA", "DATA DOM"):
