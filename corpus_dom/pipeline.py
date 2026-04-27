@@ -2,15 +2,20 @@
 pipeline.py — Orquestração principal do pipeline DOM-BH.
 
 Etapas executadas em ordem:
-  1. Ingestão e limpeza do CSV exportado do DOM-BH
-  2. Parsing e enriquecimento da ementa (verbo, refs, valor)
-  3. Separação de ASSUNTO em área e subtema
-  4. Normalização de ÓRGÃO
-  5. Verificação de API/LexML e scraping do texto completo
-  6. Carga no MySQL
+  1. Ingestão do CSV exportado do DOM-BH
+  2. Conversão de datas e cálculo de lag de publicação
+  3. Parsing e enriquecimento da ementa (verbo, refs, valor)
+  4. Separação de ASSUNTO em área e subtema
+  5. Normalização de ÓRGÃO
+  6. Verificação de API/LexML e scraping do texto completo (HTML, PDF, DOCX)
+  7. Limpeza e deduplicação do texto coletado
+  8. Exportação do corpus (JSONL e/ou CSV)
+  9. Carga no MySQL
 
 Execute com:
-    python pipeline.py [--csv CAMINHO] [--sem-scraping] [--sem-carga]
+    python pipeline.py [--csv CAMINHO] [--sem-scraping] [--sem-limpeza]
+                       [--exportar-jsonl CAMINHO] [--exportar-csv CAMINHO]
+                       [--sem-carga]
 """
 
 import argparse
@@ -21,9 +26,10 @@ import sys
 import pandas as pd
 from dotenv import load_dotenv
 
+import cleaner
 import extractor
-import scraper
 import loader
+import scraper
 
 # ── Configuração de logging ───────────────────────────────────────────────────
 
@@ -51,6 +57,23 @@ def _parse_args() -> argparse.Namespace:
         "--sem-scraping",
         action="store_true",
         help="Pula a etapa de scraping do texto completo",
+    )
+    parser.add_argument(
+        "--sem-limpeza",
+        action="store_true",
+        help="Pula a etapa de limpeza e deduplicação do texto",
+    )
+    parser.add_argument(
+        "--exportar-jsonl",
+        default=None,
+        metavar="CAMINHO",
+        help="Exporta corpus em JSONL para o caminho indicado",
+    )
+    parser.add_argument(
+        "--exportar-csv",
+        default=None,
+        metavar="CAMINHO",
+        help="Exporta corpus em CSV (UTF-8 BOM) para o caminho indicado",
     )
     parser.add_argument(
         "--sem-carga",
@@ -140,9 +163,25 @@ def executar(args: argparse.Namespace) -> None:
         logger.info("=== Etapa 6: Scraping pulado (--sem-scraping) ===")
         df["texto_completo"] = None
 
-    # ── Etapa 7: Carga no MySQL ───────────────────────────────────────────────
+    # ── Etapa 7: Limpeza e deduplicação do texto ─────────────────────────────
+    if not args.sem_limpeza:
+        logger.info("=== Etapa 7: Limpeza e deduplicação do texto ===")
+        df = cleaner.limpar_dataframe(df)
+    else:
+        logger.info("=== Etapa 7: Limpeza pulada (--sem-limpeza) ===")
+
+    # ── Etapa 8: Exportação do corpus ────────────────────────────────────────
+    if args.exportar_jsonl:
+        logger.info("=== Etapa 8a: Exportação JSONL → %s ===", args.exportar_jsonl)
+        loader.exportar_jsonl(df, args.exportar_jsonl)
+
+    if args.exportar_csv:
+        logger.info("=== Etapa 8b: Exportação CSV → %s ===", args.exportar_csv)
+        loader.exportar_csv_corpus(df, args.exportar_csv)
+
+    # ── Etapa 9: Carga no MySQL ───────────────────────────────────────────────
     if not args.sem_carga:
-        logger.info("=== Etapa 7: Carga no MySQL ===")
+        logger.info("=== Etapa 9: Carga no MySQL ===")
         conn = loader.criar_conexao()
         try:
             loader.garantir_tabela(conn)
@@ -151,7 +190,7 @@ def executar(args: argparse.Namespace) -> None:
             conn.close()
             logger.info("Conexão MySQL encerrada.")
     else:
-        logger.info("=== Etapa 7: Carga MySQL pulada (--sem-carga) ===")
+        logger.info("=== Etapa 9: Carga MySQL pulada (--sem-carga) ===")
 
     logger.info("Pipeline concluído com sucesso.")
 

@@ -4,11 +4,13 @@ scraper.py — Coleta do texto completo dos atos normativos via portal DOM-BH.
 Responsabilidades:
   - Verificar disponibilidade de API ou exportação estruturada (LexML)
   - Fazer GET em cada LINK com delay configurável e retry exponencial
-  - Extrair o texto principal do HTML com BeautifulSoup
+  - Detectar o tipo de conteúdo (HTML, PDF, DOCX) e rotear para o extrator correto
   - Registrar falhas em log sem interromper o pipeline
 """
 
+import io
 import logging
+import re
 import time
 from typing import Optional
 
@@ -17,7 +19,6 @@ from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
 
-# User-agent discreto para não ser bloqueado por rate-limit simples
 _HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (compatible; DOM-BH-Pesquisa/1.0; "
@@ -25,7 +26,6 @@ _HEADERS = {
     )
 }
 
-# Endpoint LexML do Município de BH (verificar disponibilidade antes do scraping HTML)
 _LEXML_ENDPOINT = "https://www.lexml.gov.br/urn/urn:lex:br;belo.horizonte:municipal"
 
 
@@ -42,29 +42,20 @@ def verificar_lexml_disponivel(timeout: int = 10) -> bool:
         if disponivel:
             logger.info("LexML disponível em %s — considere usar exportação estruturada.", _LEXML_ENDPOINT)
         else:
-            logger.info("LexML retornou status %d. Prosseguindo com scraping HTML.", resp.status_code)
+            logger.info("LexML retornou status %d. Prosseguindo com scraping.", resp.status_code)
         return disponivel
     except requests.RequestException as exc:
-        logger.info("LexML inacessível (%s). Prosseguindo com scraping HTML.", exc)
+        logger.info("LexML inacessível (%s). Prosseguindo com scraping.", exc)
         return False
 
 
-# ── Scraping HTML ─────────────────────────────────────────────────────────────
+# ── Extratores por tipo de conteúdo ──────────────────────────────────────────
 
 def _extrair_texto_html(html: str) -> str:
-    """
-    Extrai o texto principal de uma página do portal DOM-BH.
-
-    O portal geralmente envolve o conteúdo em <div class="content"> ou similar;
-    como fallback usa o <body> inteiro sem scripts e estilos.
-    """
+    """Extrai texto principal de uma página HTML do portal DOM-BH."""
     soup = BeautifulSoup(html, "lxml")
-
-    # Remove elementos que não fazem parte do corpo do ato
     for tag in soup(["script", "style", "nav", "header", "footer", "aside"]):
         tag.decompose()
-
-    # Seletores em ordem de prioridade (ajustar conforme estrutura real do portal)
     candidatos = [
         soup.find("div", class_=re.compile(r"content|texto|ato|decreto", re.I)),
         soup.find("article"),
@@ -74,14 +65,72 @@ def _extrair_texto_html(html: str) -> str:
     for elemento in candidatos:
         if elemento:
             texto = elemento.get_text(separator="\n", strip=True)
-            if len(texto) > 100:  # descarta páginas de erro / redirecionamento
+            if len(texto) > 100:
                 return texto
-
     return ""
 
 
-import re  # movido para cá por ser usado em _extrair_texto_html
+def _extrair_texto_pdf(content: bytes) -> str:
+    """
+    Extrai texto de um PDF usando pdfplumber.
+    Retorna string vazia se pdfplumber não estiver instalado ou o PDF for ilegível.
+    """
+    try:
+        import pdfplumber
+    except ImportError:
+        logger.warning("pdfplumber não instalado. Instale com: pip install pdfplumber")
+        return ""
 
+    try:
+        texto_paginas: list[str] = []
+        with pdfplumber.open(io.BytesIO(content)) as pdf:
+            for pagina in pdf.pages:
+                t = pagina.extract_text()
+                if t:
+                    texto_paginas.append(t)
+        return "\n".join(texto_paginas)
+    except Exception as exc:
+        logger.warning("Falha ao extrair texto do PDF: %s", exc)
+        return ""
+
+
+def _extrair_texto_docx(content: bytes) -> str:
+    """
+    Extrai texto de um arquivo DOCX usando python-docx.
+    Retorna string vazia se python-docx não estiver instalado.
+    """
+    try:
+        from docx import Document
+    except ImportError:
+        logger.warning("python-docx não instalado. Instale com: pip install python-docx")
+        return ""
+
+    try:
+        doc = Document(io.BytesIO(content))
+        return "\n".join(p.text for p in doc.paragraphs if p.text.strip())
+    except Exception as exc:
+        logger.warning("Falha ao extrair texto do DOCX: %s", exc)
+        return ""
+
+
+def _rotear_extracao(resp: requests.Response) -> str:
+    """Detecta o tipo de conteúdo pela resposta HTTP e chama o extrator correto."""
+    content_type = resp.headers.get("Content-Type", "").lower()
+
+    if "pdf" in content_type or resp.url.lower().endswith(".pdf"):
+        logger.debug("Conteúdo detectado como PDF.")
+        return _extrair_texto_pdf(resp.content)
+
+    if "wordprocessingml" in content_type or resp.url.lower().endswith(".docx"):
+        logger.debug("Conteúdo detectado como DOCX.")
+        return _extrair_texto_docx(resp.content)
+
+    # Padrão: HTML
+    resp.encoding = resp.apparent_encoding
+    return _extrair_texto_html(resp.text)
+
+
+# ── Coleta com retry ──────────────────────────────────────────────────────────
 
 def buscar_texto(
     url: str,
@@ -90,28 +139,20 @@ def buscar_texto(
     timeout: int = 30,
 ) -> Optional[str]:
     """
-    Faz GET na URL e retorna o texto extraído do HTML.
+    Faz GET na URL e retorna o texto extraído (HTML, PDF ou DOCX).
 
-    Parâmetros
-    ----------
-    url         : URL do ato no portal DOM-BH
-    delay       : segundos de espera após cada requisição bem-sucedida
-    max_retries : número máximo de tentativas em caso de falha
-    timeout     : timeout da requisição HTTP em segundos
-
-    Retorna None em caso de falha definitiva após todas as tentativas.
+    Aplica retry com backoff exponencial (2s, 4s, 8s) em falhas 5xx e de rede.
+    Retorna None em caso de falha definitiva.
     """
     for tentativa in range(1, max_retries + 1):
         try:
             resp = requests.get(url, headers=_HEADERS, timeout=timeout)
             resp.raise_for_status()
-            resp.encoding = resp.apparent_encoding  # lida com latin-1 do portal
-            texto = _extrair_texto_html(resp.text)
+            texto = _rotear_extracao(resp)
             time.sleep(delay)
             return texto if texto else None
 
         except requests.HTTPError as exc:
-            # Erros 4xx não adianta retentar
             if exc.response is not None and exc.response.status_code < 500:
                 logger.error("Erro HTTP %d em %s — não será refeita.", exc.response.status_code, url)
                 return None
@@ -121,7 +162,7 @@ def buscar_texto(
             logger.warning("Tentativa %d/%d falhou (%s) para %s.", tentativa, max_retries, exc, url)
 
         if tentativa < max_retries:
-            espera = 2 ** tentativa  # backoff exponencial: 2s, 4s, 8s
+            espera = 2 ** tentativa
             logger.debug("Aguardando %ds antes da próxima tentativa.", espera)
             time.sleep(espera)
 
@@ -139,8 +180,7 @@ def scrape_todos(
 ):
     """
     Itera sobre o DataFrame e preenche col_destino com o texto coletado.
-
-    Registra progresso a cada 50 registros para facilitar monitoramento.
+    Registra progresso a cada 50 registros.
     """
     if col_link not in df.columns:
         logger.error("Coluna '%s' não encontrada. Abortando scraping.", col_link)
