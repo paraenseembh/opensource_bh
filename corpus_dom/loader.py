@@ -1,16 +1,19 @@
 """
-loader.py — Carga dos dados processados no MySQL.
+loader.py — Carga dos dados processados no MySQL e exportação do corpus.
 
 Responsabilidades:
   - Criar conexão com o banco a partir de variáveis de ambiente
   - Criar a tabela atos_dom_bh se ainda não existir
   - Inserir ou atualizar (upsert) registros via INSERT … ON DUPLICATE KEY UPDATE
   - Serializar campos JSON (refs_legais) e tratar tipos Python/MySQL
+  - Exportar corpus em formato JSONL e CSV para uso externo (NLP, Power BI)
 """
 
+import csv
 import json
 import logging
 import os
+from pathlib import Path
 from typing import Optional
 
 import mysql.connector
@@ -190,3 +193,86 @@ def carregar_dataframe(df, conn: MySQLConnection, tamanho_lote: int = 200) -> in
 
     logger.info("Carga concluída: %d linhas afetadas no total.", total_afetadas)
     return total_afetadas
+
+
+# ── Exportação do corpus ──────────────────────────────────────────────────────
+
+_COLUNAS_CORPUS = [
+    "TIPO ATO", "orgao_norm", "Nº", "DATA ASSINATURA", "DATA DOM",
+    "EMENTA", "verbo_principal", "area", "subtema",
+    "valor_monetario", "LINK", "texto_completo",
+]
+
+
+def _linha_para_registro_corpus(row) -> dict:
+    """Converte linha do DataFrame para dicionário do corpus (ids legíveis)."""
+    import pandas as pd
+
+    def val(nome: str):
+        v = row.get(nome)
+        try:
+            if pd.isna(v):
+                return None
+        except (TypeError, ValueError):
+            pass
+        if hasattr(v, "isoformat"):
+            return v.isoformat()
+        return v
+
+    refs = val("refs_legais")
+    return {
+        "id":               f"{val('TIPO ATO') or 'ATO'}_{val('Nº') or 'SN'}_{val('DATA DOM') or 'SD'}".replace(" ", "_"),
+        "tipo_ato":         val("TIPO ATO"),
+        "orgao":            val("orgao_norm"),
+        "numero":           val("Nº"),
+        "data_assinatura":  str(val("DATA ASSINATURA")) if val("DATA ASSINATURA") else None,
+        "data_dom":         str(val("DATA DOM")) if val("DATA DOM") else None,
+        "ementa":           val("EMENTA"),
+        "verbo_principal":  val("verbo_principal"),
+        "area":             val("area"),
+        "subtema":          val("subtema"),
+        "valor_monetario":  val("valor_monetario"),
+        "refs_legais":      refs if isinstance(refs, list) else [],
+        "link":             val("LINK"),
+        "texto":            val("texto_completo"),
+    }
+
+
+def exportar_jsonl(df, caminho: str) -> int:
+    """
+    Exporta o corpus como JSONL (um registro JSON por linha).
+
+    Formato ideal para treinamento/fine-tuning de modelos de linguagem.
+    Retorna o número de registros gravados.
+    """
+    Path(caminho).parent.mkdir(parents=True, exist_ok=True)
+    gravados = 0
+    with open(caminho, "w", encoding="utf-8") as f:
+        for _, row in df.iterrows():
+            registro = _linha_para_registro_corpus(row)
+            f.write(json.dumps(registro, ensure_ascii=False) + "\n")
+            gravados += 1
+    logger.info("Corpus JSONL gravado em '%s': %d registros.", caminho, gravados)
+    return gravados
+
+
+def exportar_csv_corpus(df, caminho: str) -> int:
+    """
+    Exporta o corpus como CSV flat (UTF-8 com BOM para compatibilidade Excel/Power BI).
+
+    Retorna o número de registros gravados.
+    """
+    Path(caminho).parent.mkdir(parents=True, exist_ok=True)
+    colunas_presentes = [c for c in _COLUNAS_CORPUS if c in df.columns]
+    df_export = df[colunas_presentes].copy()
+
+    # Formata listas como string JSON para caber numa célula CSV
+    if "refs_legais" in df_export.columns:
+        df_export["refs_legais"] = df_export["refs_legais"].apply(
+            lambda v: json.dumps(v, ensure_ascii=False) if isinstance(v, list) else v
+        )
+
+    df_export.to_csv(caminho, index=False, encoding="utf-8-sig", sep=";", quoting=csv.QUOTE_NONNUMERIC)
+    gravados = len(df_export)
+    logger.info("Corpus CSV gravado em '%s': %d registros.", caminho, gravados)
+    return gravados
