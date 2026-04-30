@@ -203,6 +203,13 @@ def run_error_tests_generic() -> tuple[int, int]:
         (ValueError,),
     )
 
+    total += 1
+    passed += _expect_error(
+        "chave vazia maritaca → ValueError",
+        lambda: create_provider("maritaca", api_key=""),
+        (ValueError,),
+    )
+
     return passed, total
 
 
@@ -222,7 +229,11 @@ def run_suite(provider_name: str, api_key: str, only_errors: bool) -> tuple[int,
     if not only_errors:
         _section("testes funcionais")
         if not api_key:
-            env_var = "ANTHROPIC_API_KEY" if provider_name == "anthropic" else "GEMINI_API_KEY"
+            env_var = {
+                "anthropic": "ANTHROPIC_API_KEY",
+                "gemini":    "GEMINI_API_KEY",
+                "maritaca":  "MARITACA_KEY",
+            }.get(provider_name, f"{provider_name.upper()}_KEY")
             _skip("todos os testes funcionais", f"{env_var} não configurada")
         else:
             provider = test_factory(provider_name, api_key)
@@ -254,7 +265,7 @@ def main():
     )
     parser.add_argument(
         "--provider",
-        choices=["anthropic", "gemini", "all"],
+        choices=["anthropic", "gemini", "maritaca", "all"],
         default="all",
         help="Provedor a testar (padrão: all)",
     )
@@ -267,21 +278,24 @@ def main():
 
     anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
     gemini_key    = os.environ.get("GEMINI_API_KEY", "")
+    maritaca_key  = os.environ.get("MARITACA_KEY", "")
 
     print(f"\n{BOLD}Verificação de APIs — BH News Chatbot{RESET}")
     print(SEP)
     status_a = "configurada" if anthropic_key else f"{YELLOW}não configurada{RESET}"
     status_g = "configurada" if gemini_key    else f"{YELLOW}não configurada{RESET}"
+    status_m = "configurada" if maritaca_key  else f"{YELLOW}não configurada{RESET}"
     print(f"  ANTHROPIC_API_KEY : {status_a}")
     print(f"  GEMINI_API_KEY    : {status_g}")
+    print(f"  MARITACA_KEY      : {status_m}")
 
     total_passed = 0
     total_tests  = 0
 
     providers_to_run = (
-        ["anthropic", "gemini"] if args.provider == "all" else [args.provider]
+        ["anthropic", "gemini", "maritaca"] if args.provider == "all" else [args.provider]
     )
-    key_map = {"anthropic": anthropic_key, "gemini": gemini_key}
+    key_map = {"anthropic": anthropic_key, "gemini": gemini_key, "maritaca": maritaca_key}
 
     # Testes gerais independentes de provedor
     print(f"\n{BOLD}Geral{RESET}")
