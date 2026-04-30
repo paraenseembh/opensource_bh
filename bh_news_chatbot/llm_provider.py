@@ -15,8 +15,11 @@ log = logging.getLogger(__name__)
 # Modelos padrão por provedor
 ANTHROPIC_CHAT_MODEL = "claude-sonnet-4-6"
 ANTHROPIC_FAST_MODEL = "claude-haiku-4-5-20251001"
-GEMINI_CHAT_MODEL = "gemini-2.0-flash"
-GEMINI_FAST_MODEL = "gemini-2.0-flash"
+GEMINI_CHAT_MODEL    = "gemini-2.0-flash"
+GEMINI_FAST_MODEL    = "gemini-2.0-flash"
+MARITACA_BASE_URL    = "https://chat.maritaca.ai/api"
+MARITACA_CHAT_MODEL  = "sabia-4"
+MARITACA_FAST_MODEL  = "sabiazinho-4"
 
 
 class LLMProvider(ABC):
@@ -166,6 +169,61 @@ class GeminiProvider(LLMProvider):
 
 
 # ---------------------------------------------------------------------------
+# Maritaca (Sabiá)
+# ---------------------------------------------------------------------------
+
+class MariticaProvider(LLMProvider):
+    """Provedor usando a API da Maritaca.ai (Sabiá), compatível com OpenAI."""
+
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        model: str = MARITACA_CHAT_MODEL,
+        max_tokens: int = 2048,
+    ):
+        self._api_key = api_key or os.environ.get("MARITACA_KEY", "")
+        if not self._api_key:
+            raise ValueError(
+                "Chave da API Maritaca não encontrada. "
+                "Defina MARITACA_KEY ou use --maritaca-key."
+            )
+        self._model = model
+        self._max_tokens = max_tokens
+        self._client = None
+
+    def _get_client(self):
+        if self._client is None:
+            from openai import OpenAI
+            self._client = OpenAI(api_key=self._api_key, base_url=MARITACA_BASE_URL)
+        return self._client
+
+    @property
+    def name(self) -> str:
+        return f"Maritaca ({self._model})"
+
+    def complete(self, system: str, messages: list[dict]) -> str:
+        msgs = [{"role": "system", "content": system}] + messages
+        resp = self._get_client().chat.completions.create(
+            model=self._model,
+            messages=msgs,
+            max_tokens=self._max_tokens,
+        )
+        return resp.choices[0].message.content
+
+    def stream(self, system: str, messages: list[dict]) -> Iterator[str]:
+        msgs = [{"role": "system", "content": system}] + messages
+        for chunk in self._get_client().chat.completions.create(
+            model=self._model,
+            messages=msgs,
+            max_tokens=self._max_tokens,
+            stream=True,
+        ):
+            delta = chunk.choices[0].delta.content
+            if delta:
+                yield delta
+
+
+# ---------------------------------------------------------------------------
 # Factory
 # ---------------------------------------------------------------------------
 
@@ -207,6 +265,14 @@ def create_provider(
             max_tokens=max_tokens,
         )
 
+    if p in ("maritaca", "sabia"):
+        default_model = MARITACA_FAST_MODEL if fast else MARITACA_CHAT_MODEL
+        return MariticaProvider(
+            api_key=api_key,
+            model=model or default_model,
+            max_tokens=max_tokens,
+        )
+
     raise ValueError(
-        f"Provedor desconhecido: '{provider}'. Use 'anthropic' ou 'gemini'."
+        f"Provedor desconhecido: '{provider}'. Use 'anthropic', 'gemini' ou 'maritaca'."
     )

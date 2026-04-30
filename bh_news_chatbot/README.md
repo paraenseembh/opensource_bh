@@ -22,9 +22,22 @@ export ANTHROPIC_API_KEY=sk-ant-...
 
 # Google Gemini
 export GEMINI_API_KEY=AIza...
+
+# Maritaca (Sabiá — modelos em português)
+export MARITACA_KEY=...
 ```
 
-Alternativamente, passe a chave diretamente na linha de comando com `--api-key` ou `--gemini-key`.
+Alternativamente, passe a chave diretamente na linha de comando com `--api-key`, `--gemini-key` ou `--maritaca-key`.
+
+### Provedores disponíveis
+
+| Provedor | Flag | Env var | Modelo chat | Modelo rápido |
+|---|---|---|---|---|
+| Anthropic (Claude) | `--provider anthropic` | `ANTHROPIC_API_KEY` | `claude-sonnet-4-6` | `claude-haiku-4-5` |
+| Google Gemini | `--provider gemini` | `GEMINI_API_KEY` | `gemini-2.0-flash` | `gemini-2.0-flash` |
+| Maritaca (Sabiá) | `--provider maritaca` | `MARITACA_KEY` | `sabia-4` | `sabiazinho-4` |
+
+> A Maritaca é uma IA brasileira focada em português. Obtenha sua chave em [plataforma.maritaca.ai](https://plataforma.maritaca.ai/chaves-de-api).
 
 ---
 
@@ -49,10 +62,11 @@ python main.py --max-per-area 20
 | Parâmetro | Descrição | Padrão |
 |---|---|---|
 | `--max-per-area N` | Máximo de artigos por área temática | `10` |
-| `--provider` | Provedor de LLM: `anthropic` ou `gemini` | `anthropic` |
+| `--provider` | Provedor: `anthropic`, `gemini` ou `maritaca` | `anthropic` |
 | `--api-key KEY` | Chave da API Anthropic | `ANTHROPIC_API_KEY` |
 | `--gemini-key KEY` | Chave da API Google Gemini | `GEMINI_API_KEY` |
-| `--model NOME` | Modelo específico (ex: `gemini-2.0-flash-lite`) | padrão do provedor |
+| `--maritaca-key KEY` | Chave da API Maritaca | `MARITACA_KEY` |
+| `--model NOME` | Modelo específico (ex: `sabiazinho-4`) | padrão do provedor |
 | `--sheet-id ID` | ID da planilha do Google Sheets | ID padrão |
 | `--refresh` | Ignora o cache e re-baixa todos os artigos | — |
 | `--categorize` | Categoriza artigos por conteúdo antes do chat | — |
@@ -73,6 +87,12 @@ python main.py --refresh --model claude-haiku-4-5-20251001
 
 # Apenas ver o relatório de categorias sem abrir o chat
 python main.py --only-categorize --provider gemini
+
+# Usar Maritaca (Sabiá) como provedor
+python main.py --provider maritaca
+
+# Maritaca com modelo rápido explícito
+python main.py --provider maritaca --model sabiazinho-4
 
 # Logs detalhados para depuração
 python main.py --log-level DEBUG

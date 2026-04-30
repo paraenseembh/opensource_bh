@@ -81,8 +81,8 @@ def parse_args():
     parser.add_argument(
         "--provider",
         default="anthropic",
-        choices=["anthropic", "gemini"],
-        help="Provedor de LLM: 'anthropic' (padrão) ou 'gemini'",
+        choices=["anthropic", "gemini", "maritaca"],
+        help="Provedor de LLM: 'anthropic' (padrão), 'gemini' ou 'maritaca'",
     )
     parser.add_argument(
         "--api-key",
@@ -93,6 +93,11 @@ def parse_args():
         "--gemini-key",
         default=os.environ.get("GEMINI_API_KEY", ""),
         help="Chave da API Google Gemini (ou use GEMINI_API_KEY)",
+    )
+    parser.add_argument(
+        "--maritaca-key",
+        default=os.environ.get("MARITACA_KEY", ""),
+        help="Chave da API Maritaca (ou use MARITACA_KEY)",
     )
     parser.add_argument(
         "--model",
@@ -231,7 +236,12 @@ def main():
 
     # Cria provedor de LLM
     try:
-        key = args.gemini_key if args.provider == "gemini" else args.api_key
+        key_map = {
+            "anthropic": args.api_key,
+            "gemini":    args.gemini_key,
+            "maritaca":  args.maritaca_key,
+        }
+        key = key_map.get(args.provider, args.api_key)
         chat_provider = create_provider(args.provider, api_key=key, model=args.model)
         # Categorização usa modelo rápido/barato do mesmo provedor
         fast_provider = create_provider(args.provider, api_key=key, fast=True)
