@@ -95,7 +95,7 @@ anthropic_provider <- function(api_key = NULL,
 }
 
 gemini_provider <- function(api_key = NULL,
-                            model = "gemini-2.0-flash",
+                            model = "gemini-2.5-flash",
                             max_tokens = 2048L) {
   key <- api_key %||% Sys.getenv("GEMINI_API_KEY")
   if (!nzchar(key)) {
@@ -127,7 +127,7 @@ create_provider <- function(provider   = "anthropic",
                        max_tokens = max_tokens)
 
   } else if (p %in% c("gemini", "google")) {
-    default_model <- if (fast) "gemini-2.0-flash" else "gemini-2.0-flash"
+    default_model <- if (fast) "gemini-2.5-flash" else "gemini-2.5-flash"
     gemini_provider(api_key    = api_key,
                     model      = model %||% default_model,
                     max_tokens = max_tokens)
