@@ -48,12 +48,14 @@ BANNER = r"""
 
 HELP_TEXT = """
 Comandos especiais:
-  /ajuda      — mostra esta mensagem
-  /areas      — lista as áreas da planilha
-  /categorias — mostra distribuição de decretos por categoria legislativa
-  /resumo     — mostra quantos documentos foram carregados por área
-  /reiniciar  — reinicia o histórico da conversa
-  /sair       — encerra o chatbot
+  /ajuda        — mostra esta mensagem
+  /areas        — lista as áreas da planilha
+  /documentos   — lista todos os documentos carregados (lê da memória, não do LLM)
+  /documentos <área> — filtra documentos por área (ex: /documentos Orçamento)
+  /categorias   — mostra distribuição de decretos por categoria legislativa
+  /resumo       — mostra quantos documentos foram carregados por área
+  /reiniciar    — reinicia o histórico da conversa
+  /sair         — encerra o chatbot
 
 Exemplos de perguntas:
   "Quais decretos tratam de urbanismo e zoneamento?"
@@ -209,6 +211,40 @@ def load_articles(args) -> list[dict]:
     return articles
 
 
+def _cmd_list_documents(articles: list[dict], area_filter: str | None = None):
+    """Lista todos os documentos da memória (não do contexto do LLM)."""
+    if area_filter:
+        subset = [
+            a for a in articles
+            if area_filter.lower() in a.get("area", "").lower()
+        ]
+        if not subset:
+            print(f"\n⚠️  Nenhum documento encontrado para a área '{area_filter}'.")
+            print("    Use /areas para ver as áreas disponíveis.")
+            return
+        title = f"📄 Documentos — área '{area_filter}' ({len(subset)} de {len(articles)})"
+    else:
+        subset = articles
+        title = f"📄 Todos os documentos ({len(subset)} no total)"
+
+    print(f"\n{title}")
+    print("─" * 60)
+
+    by_area: dict[str, list[dict]] = {}
+    for art in subset:
+        by_area.setdefault(art.get("area", "Geral"), []).append(art)
+
+    for area in sorted(by_area):
+        print(f"\n  [{area}] — {len(by_area[area])} doc(s)")
+        for art in by_area[area]:
+            date = art.get("date", "")
+            title_str = art.get("title", "(sem título)")
+            date_str = f"[{date}] " if date else ""
+            print(f"    • {date_str}{title_str}")
+
+    print()
+
+
 def run_interactive(chatbot: BHNewsChatbot):
     """Loop interativo do chatbot."""
     print(BANNER)
@@ -227,6 +263,7 @@ def run_interactive(chatbot: BHNewsChatbot):
             continue
 
         cmd = user_input.lower()
+        cmd_base = cmd.split()[0] if cmd.split() else ""
 
         if cmd in ("/sair", "/exit", "/quit"):
             print("Até logo!")
@@ -239,6 +276,10 @@ def run_interactive(chatbot: BHNewsChatbot):
             print("\n📋 Áreas disponíveis (da planilha):")
             for area in areas:
                 print(f"  • {area}")
+            continue
+        elif cmd_base == "/documentos":
+            area_filter = user_input[len("/documentos"):].strip() or None
+            _cmd_list_documents(chatbot._articles, area_filter)
             continue
         elif cmd in ("/categorias",):
             if any(a.get("categories") for a in chatbot._articles):

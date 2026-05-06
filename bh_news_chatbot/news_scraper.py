@@ -252,14 +252,58 @@ def scrape_all(
     return articles
 
 
-def format_articles_for_context(articles: list[dict], max_total_chars: int = 80000) -> str:
+def build_article_index(articles: list[dict], max_chars: int = 40000) -> str:
     """
-    Formata os artigos como texto estruturado para o contexto do chatbot.
-    Respeita um limite máximo de caracteres total.
+    Constrói um índice compacto de TODOS os artigos (título + área + data).
+    Usado como cabeçalho do contexto para que o LLM saiba o acervo completo.
     """
-    parts = []
-    total = 0
+    by_area: dict[str, list[str]] = {}
+    for art in articles:
+        area = art.get("area", "Geral")
+        title = art.get("title", "(sem título)")
+        date = art.get("date", "")
+        entry = f"  • [{date}] {title}" if date else f"  • {title}"
+        by_area.setdefault(area, []).append(entry)
 
+    lines = [
+        f"=== ÍNDICE COMPLETO: {len(articles)} documentos em {len(by_area)} áreas ===",
+        "(Para listar todos os documentos, use o comando /documentos)\n",
+    ]
+    total = sum(len(l) + 1 for l in lines)
+
+    for area in sorted(by_area):
+        header = f"\n[{area}] — {len(by_area[area])} doc(s)"
+        total += len(header) + 1
+        if total > max_chars:
+            lines.append(f"\n... (índice truncado; use /documentos para ver tudo)")
+            break
+        lines.append(header)
+        for entry in by_area[area]:
+            total += len(entry) + 1
+            if total > max_chars:
+                lines.append("  ... (mais documentos nesta área)")
+                break
+            lines.append(entry)
+
+    return "\n".join(lines)
+
+
+def format_articles_for_context(articles: list[dict], max_total_chars: int = 150000) -> str:
+    """
+    Formata os artigos para o contexto do chatbot.
+
+    Estrutura:
+    1. Índice compacto de TODOS os artigos (título + área + data) — orçamento fixo.
+    2. Conteúdo completo dos artigos que couberem no orçamento restante.
+    """
+    INDEX_BUDGET = 40000
+    index = build_article_index(articles, max_chars=INDEX_BUDGET)
+    content_budget = max_total_chars - len(index)
+
+    parts = [index, "\n=== CONTEÚDO COMPLETO (documentos que cabem no contexto) ===\n"]
+    content_used = sum(len(p) for p in parts) - len(index)
+
+    included = 0
     for art in articles:
         area = art.get("area", "Geral")
         title = art.get("title", "(sem título)")
@@ -271,19 +315,24 @@ def format_articles_for_context(articles: list[dict], max_total_chars: int = 800
         cats_str = ", ".join(categories) if categories else ""
 
         section = (
-            f"--- NOTÍCIA ---\n"
+            f"--- DOCUMENTO ---\n"
             f"Área: {area}\n"
             + (f"Categorias: {cats_str}\n" if cats_str else "")
             + f"Título: {title}\n"
             + (f"Data: {date}\n" if date else "")
-            + f"URL: {url}\n\n"
-            f"{body}\n\n"
+            + (f"URL: {url}\n" if url else "")
+            + f"\n{body}\n\n"
         )
 
-        if total + len(section) > max_total_chars:
+        if content_used + len(section) > content_budget:
+            parts.append(
+                f"[{len(articles) - included} documento(s) sem texto completo neste contexto — "
+                f"use /documentos para listar todos]\n"
+            )
             break
         parts.append(section)
-        total += len(section)
+        content_used += len(section)
+        included += 1
 
     return "\n".join(parts)
 
