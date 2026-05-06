@@ -24,9 +24,9 @@ MARITACA_FAST_MODEL  = "sabiazinho-4"
 # Limite de contexto em chars por provedor
 # (janela de tokens × ~3,5 chars/token, com margem de segurança)
 CONTEXT_LIMIT_CHARS = {
-    "anthropic": 680_000,   # 200K tokens
+    "anthropic": 680_000,   # 200K tokens × ~3,5 chars/token, com margem
     "gemini":    3_500_000, # 1M tokens
-    "maritaca":  430_000,   # 128K tokens
+    "maritaca":  300_000,   # 128K tokens × ~2,7 chars/token, com margem para histórico
 }
 
 

@@ -139,7 +139,7 @@ Cada provedor tem uma janela de contexto diferente, o que determina quantos docu
 |---|---|---|
 | Google Gemini | 1M tokens (~3,5M chars) | **todos os 2.755** |
 | Anthropic Claude | 200K tokens (~680K chars) | ~1.343 |
-| Maritaca Sabiá-4 | 128K tokens (~430K chars) | ~853 |
+| Maritaca Sabiá-4 | 128K tokens (~300K chars) | ~700 |
 
 Independente do limite de texto completo, o chatbot sempre inclui no contexto um **índice compacto** (título + área + data) de todos os documentos, e o comando `/documentos` lista todos via memória sem custo de tokens.
 
