@@ -144,7 +144,7 @@ python bh_news_chatbot/main.py --provider maritaca --model sabiazinho-4
 | Provedor | Modelo padrão | Modelo rápido |
 |---|---|---|
 | Anthropic | `claude-sonnet-4-6` | `claude-haiku-4-5` |
-| Google Gemini | `gemini-2.0-flash` | `gemini-2.0-flash` |
+| Google Gemini | `gemini-2.5-flash` | `gemini-2.5-flash` |
 | Maritaca AI | `sabia-4` | `sabiazinho-4` |
 
 ---

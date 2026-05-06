@@ -110,7 +110,7 @@ python main.py --maritaca-key ...
 | Provedor | Flag | Env var | Modelo chat | Modelo rápido |
 |---|---|---|---|---|
 | Anthropic (Claude) | `--provider anthropic` | `ANTHROPIC_API_KEY` | `claude-sonnet-4-6` | `claude-haiku-4-5` |
-| Google Gemini | `--provider gemini` | `GEMINI_API_KEY` | `gemini-2.0-flash` | `gemini-2.0-flash` |
+| Google Gemini | `--provider gemini` | `GEMINI_API_KEY` | `gemini-2.5-flash` | `gemini-2.5-flash` |
 | Maritaca (Sabiá) | `--provider maritaca` | `MARITACA_KEY` | `sabia-4` | `sabiazinho-4` |
 
 > A Maritaca é uma IA brasileira focada em português. Obtenha sua chave em [plataforma.maritaca.ai](https://plataforma.maritaca.ai/chaves-de-api).
