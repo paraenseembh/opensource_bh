@@ -15,8 +15,8 @@ log = logging.getLogger(__name__)
 # Modelos padrão por provedor
 ANTHROPIC_CHAT_MODEL = "claude-sonnet-4-6"
 ANTHROPIC_FAST_MODEL = "claude-haiku-4-5-20251001"
-GEMINI_CHAT_MODEL    = "gemini-3.1-flash"
-GEMINI_FAST_MODEL    = "gemini-3.1-flash"
+GEMINI_CHAT_MODEL    = "gemini-2.5-flash"
+GEMINI_FAST_MODEL    = "gemini-2.5-flash"
 MARITACA_BASE_URL    = "https://chat.maritaca.ai/api"
 MARITACA_CHAT_MODEL  = "sabia-4"
 MARITACA_FAST_MODEL  = "sabiazinho-4"
