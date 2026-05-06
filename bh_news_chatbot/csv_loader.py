@@ -11,13 +11,21 @@ EMENTA como corpo — sem precisar raspar nenhuma página web.
 
 import csv
 import logging
-import re
+from datetime import date, datetime
 from pathlib import Path
 
 log = logging.getLogger(__name__)
 
 # Caminho padrão: legislacao_2026_04.csv na raiz do repositório
 DEFAULT_CSV = Path(__file__).parent.parent / "legislacao_2026_04.csv"
+
+
+def _parse_date(date_str: str) -> date:
+    """Converte DD/MM/YYYY em date para ordenação. Datas inválidas vão para o fim."""
+    try:
+        return datetime.strptime(date_str.strip(), "%d/%m/%Y").date()
+    except ValueError:
+        return date.min
 
 
 def _normalize_area(assunto: str) -> str:
@@ -85,6 +93,10 @@ def load_articles_from_csv(path: Path | str = DEFAULT_CSV) -> list[dict]:
                 "body":  _build_body(row),
                 "area":  _normalize_area(row.get("ASSUNTO", "")),
             })
+
+    # Ordena do mais recente para o mais antigo para que o contexto do LLM
+    # priorize a legislação mais atual dentro do limite de tokens.
+    articles.sort(key=lambda a: _parse_date(a["date"]), reverse=True)
 
     log.info(
         "CSV carregado: %d registros válidos, %d ignorados (sem ementa) — %s",
