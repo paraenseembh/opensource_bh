@@ -28,11 +28,87 @@ def _parse_date(date_str: str) -> date:
         return date.min
 
 
+# Mapa de normalização de áreas: chave = prefixo bruto do ASSUNTO (maiúsculas),
+# valor = área canônica (Title Case).
+_AREA_MAP: dict[str, str] = {
+    # ── Typos e variantes ortográficas ────────────────────────────────────
+    "EDUC":                                          "Educação",
+    "LIMPESA URBANA":                                "Limpeza Urbana",
+    "ORGANIGAÇÃO":                                   "Estrutura",
+    "CONSELHO\\FUNDO":                               "Conselho/Fundo",
+
+    # ── Entradas redundantes → área canônica ──────────────────────────────
+    "CONSELHO":                                      "Conselho/Fundo",
+    "ORÇAMENTO IMPOSITIVO":                          "Orçamento",
+    "EXECUÇÃO ORÇAMENTÁRIA":                         "Orçamento",
+    "ADMINISTRAÇÃO PÚBLICA":                         "Administrativo",
+    "GOVERNO DIGITAL":                               "Governo",
+    "DESENVOLVIMENTO ECONÔMICO":                     "Desenvolvimento",
+    "CIDADANIA":                                     "Direito E Cidadania",
+    "ESPORTES E LAZER":                              "Esportes",
+    "SEGURANÇA PÚBLICA":                             "Segurança",
+    "FINANCIAMENTOS":                                "Finanças",
+    "FAZENDA":                                       "Finanças",
+    "CONTABILIDADE":                                 "Finanças",
+    "CONCESSÃO DE APOIOS":                           "Finanças",
+    "PBH ATIVOS":                                    "Finanças",
+    "PREVIDÊNCIA":                                   "Pessoal",
+    "SANEAMENTO":                                    "Meio Ambiente",
+    "PARQUES MUNICIPAIS E ZOOBOTÂNICA":              "Meio Ambiente",
+    "MOBILIDADE E INCLUSÃO URBANA":                  "Transportes",
+    "OBSERVATÓRIO DE MOBILIDADE URBANA":             "Transportes",
+    "FUNDO DE MOBILIDADE URBANA":                    "Transportes",
+    "TRANSPORTES TRANSPORTE PÚBLICO":                "Transportes",
+    "SISTEMA- SICOM":                                "Sistema",
+    "PROJETO BH LIMPA":                              "Limpeza Urbana",
+    "URBEL":                                         "Política Urbana",
+    "PROCURADORIA":                                  "Administrativo",
+
+    # ── Siglas de órgãos → área temática ──────────────────────────────────
+    "SMSA":                                          "Saúde",
+    "HOB":                                           "Saúde",        # Hospital Odilon Behrens
+    "BHTRANS":                                       "Transportes",
+    "BELOTUR":                                       "Turismo",
+    "BHLOT":                                         "Finanças",
+    "PRODABEL":                                      "Tecnologia",
+    "SUDECAP":                                       "Obras",
+    "GRP":                                           "Administrativo",
+
+    # ── Entradas genéricas / ruído → Administrativo ───────────────────────
+    "LEGISLAÇÃO":                                    "Administrativo",
+    "INSTRUÇÃO NORMATIVA":                           "Administrativo",
+    "DOM":                                           "Administrativo",
+    "COMITÊ":                                        "Administrativo",
+    "COMPETÊNCIAS":                                  "Administrativo",
+    "PROJETO":                                       "Administrativo",
+    "MODERNIZAÇÃO":                                  "Administrativo",
+    "PLANO ESTRATÉGICO INSTITUCIONAL":               "Administrativo",
+    "POLÍTICAS PÚBLICAS":                            "Administrativo",
+    "TRATAMENTO DE DADOS PESSOAIS":                  "Administrativo",
+    "NÚCLEO DE CONTROLE DE QUALIDADE":               "Administrativo",
+    "MOVIMENTO BELO HORIZONTE MAIS FELIZ":           "Assistência",
+    "COVID":                                         "Saúde",
+    "OBSERVATÓRIO DOS DIREITOS HUMANOS DE BELO HORIZONTE": "Direito E Cidadania",
+}
+
+
 def _normalize_area(assunto: str) -> str:
-    """Retorna a primeira parte do ASSUNTO (antes de ' - ') como área temática."""
+    """
+    Normaliza o ASSUNTO do CSV para uma área temática canônica.
+
+    Extrai o prefixo antes de ' - ', aplica o mapa de correções e
+    converte para Title Case como fallback.
+    """
     if not assunto:
         return "Outros"
-    return assunto.split(" - ")[0].strip().title() or "Outros"
+    # Normaliza: en-dash → hífen, espaços múltiplos → espaço simples
+    clean = assunto.replace("\x96", "-").replace("–", "-")
+    prefix = " ".join(clean.split(" - ")[0].split())
+    canonical = _AREA_MAP.get(prefix.upper())
+    if canonical:
+        return canonical
+    result = prefix.title()
+    return result if result else "Outros"
 
 
 def _build_title(row: dict) -> str:
