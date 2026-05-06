@@ -46,22 +46,32 @@ export MARITACA_KEY=...               # para Maritaca AI
 #### Uso
 
 ```bash
-# Modo padrão (Anthropic)
+# Modo padrão (Anthropic + Google Sheets)
 python bh_news_chatbot/main.py
 
-# Com Google Gemini
+# Usar o CSV local de legislação (sem acesso à internet para carregar dados)
+python bh_news_chatbot/main.py --use-local-csv
+
+# CSV local com outro provedor de LLM
+python bh_news_chatbot/main.py --use-local-csv --provider gemini
+python bh_news_chatbot/main.py --use-local-csv --provider maritaca
+
+# CSV em outro caminho
+python bh_news_chatbot/main.py --csv /caminho/para/legislacao.csv
+
+# Com Google Gemini (fonte: Google Sheets)
 python bh_news_chatbot/main.py --provider gemini
 
 # Com Maritaca AI (Sabiá)
 python bh_news_chatbot/main.py --provider maritaca
 
 # Categorizar notícias por conteúdo antes do chat
-python bh_news_chatbot/main.py --categorize
+python bh_news_chatbot/main.py --use-local-csv --categorize
 
 # Apenas exibir relatório de categorias
-python bh_news_chatbot/main.py --only-categorize
+python bh_news_chatbot/main.py --use-local-csv --only-categorize
 
-# Forçar re-download (ignorar cache)
+# Forçar re-download (ignorar cache, apenas com Google Sheets)
 python bh_news_chatbot/main.py --refresh
 
 # Modelo específico
@@ -78,8 +88,10 @@ python bh_news_chatbot/main.py --provider maritaca --model sabiazinho-4
 | `--gemini-key` | Chave Gemini | `GEMINI_API_KEY` |
 | `--maritaca-key` | Chave Maritaca AI | `MARITACA_KEY` |
 | `--model` | Modelo específico | padrão do provedor |
-| `--max-per-area` | Máximo de artigos por área | `10` |
-| `--refresh` | Re-baixa todas as notícias | — |
+| `--use-local-csv` | Usa o CSV local `legislacao_2026_04.csv` como fonte | — |
+| `--csv ARQUIVO` | Caminho para um CSV de legislação alternativo | — |
+| `--max-per-area` | Máximo de artigos por área (apenas Google Sheets) | `10` |
+| `--refresh` | Re-baixa todas as notícias (apenas Google Sheets) | — |
 | `--categorize` | Categoriza artigos antes do chat | — |
 | `--only-categorize` | Só categoriza, sem abrir o chat | — |
 | `--sheet-id` | ID da planilha Google Sheets | ID padrão |
