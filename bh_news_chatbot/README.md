@@ -110,10 +110,24 @@ python main.py --maritaca-key ...
 | Provedor | Flag | Env var | Modelo chat | Modelo rápido |
 |---|---|---|---|---|
 | Anthropic (Claude) | `--provider anthropic` | `ANTHROPIC_API_KEY` | `claude-sonnet-4-6` | `claude-haiku-4-5` |
-| Google Gemini | `--provider gemini` | `GEMINI_API_KEY` | `gemini-2.5-flash` | `gemini-2.5-flash` |
+| Google Gemini | `--provider gemini` | `GEMINI_API_KEY` | `gemini-3.1-flash` | `gemini-3.1-flash` |
 | Maritaca (Sabiá) | `--provider maritaca` | `MARITACA_KEY` | `sabia-4` | `sabiazinho-4` |
 
 > A Maritaca é uma IA brasileira focada em português. Obtenha sua chave em [plataforma.maritaca.ai](https://plataforma.maritaca.ai/chaves-de-api).
+
+#### Modelos Gemini disponíveis
+
+| Modelo | ID para `--model` |
+|---|---|
+| Gemini 3.1 Flash *(padrão)* | `gemini-3.1-flash` |
+| Gemini 2.5 Flash | `gemini-2.5-flash` |
+| Gemini 2.5 Pro | `gemini-2.5-pro` |
+
+```bash
+python main.py --provider gemini --model gemini-3.1-flash
+python main.py --provider gemini --model gemini-2.5-flash
+python main.py --provider gemini --model gemini-2.5-pro
+```
 
 ---
 
