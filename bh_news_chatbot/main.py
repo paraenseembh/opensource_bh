@@ -27,6 +27,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from sheets_reader import load_all_news_links, SPREADSHEET_ID
 from news_scraper import scrape_all, CACHE_FILE
+from csv_loader import load_articles_from_csv, DEFAULT_CSV
 from chatbot import BHNewsChatbot
 from categorizer import categorize_articles, print_category_report
 from llm_provider import create_provider
@@ -110,6 +111,20 @@ def parse_args():
         help="ID da planilha do Google Sheets",
     )
     parser.add_argument(
+        "--csv",
+        metavar="ARQUIVO",
+        default=None,
+        help=(
+            f"Carrega legislação diretamente de um CSV local em vez do Google Sheets "
+            f"(padrão quando omitido: {DEFAULT_CSV.name})"
+        ),
+    )
+    parser.add_argument(
+        "--use-local-csv",
+        action="store_true",
+        help=f"Atalho: usa o CSV local padrão ({DEFAULT_CSV.name}) como fonte de dados",
+    )
+    parser.add_argument(
         "--categorize",
         action="store_true",
         help="Categoriza os artigos por conteúdo usando Claude antes de iniciar o chat",
@@ -128,15 +143,39 @@ def parse_args():
     return parser.parse_args()
 
 
+def _csv_path(args) -> "Path | None":
+    """Retorna o caminho do CSV a usar, ou None se a fonte for o Google Sheets."""
+    from pathlib import Path
+    if args.csv:
+        return Path(args.csv)
+    if args.use_local_csv:
+        return DEFAULT_CSV
+    return None
+
+
 def load_articles(args) -> list[dict]:
-    """Carrega e raspa os artigos de notícias."""
+    """Carrega artigos: do CSV local (se --csv/--use-local-csv) ou do Google Sheets."""
+    csv_path = _csv_path(args)
+
+    if csv_path is not None:
+        log.info("Fonte: CSV local (%s)", csv_path)
+        try:
+            articles = load_articles_from_csv(csv_path)
+        except FileNotFoundError as e:
+            log.error("%s", e)
+            sys.exit(1)
+        if not articles:
+            log.error("Nenhum registro válido encontrado no CSV.")
+            sys.exit(1)
+        return articles
+
+    # ── Fonte: Google Sheets + scraping ────────────────────────────────────
     use_cache = not args.refresh
 
     if use_cache and CACHE_FILE.exists():
         import json
         log.info("Cache encontrado em %s", CACHE_FILE)
         cache_data = json.loads(CACHE_FILE.read_text(encoding="utf-8"))
-        # Reconstrói lista de artigos a partir do cache
         articles = [
             v for v in cache_data.values()
             if v is not None and isinstance(v, dict) and v.get("body")
