@@ -96,14 +96,6 @@ python bh_news_chatbot/main.py --provider maritaca --model sabiazinho-4
 | `--only-categorize` | Só categoriza, sem abrir o chat | — |
 | `--sheet-id` | ID da planilha Google Sheets | ID padrão |
 
-#### Fontes de dados
-
-| Fonte | Como usar | Requer internet? |
-|---|---|---|
-| Google Sheets (padrão) | `python main.py` | Sim (raspa páginas) |
-| CSV local | `python main.py --use-local-csv` | Não |
-| CSV personalizado | `python main.py --csv arquivo.csv` | Não |
-
 #### Modelos disponíveis por provedor
 
 | Provedor | Modelo padrão | Modelo rápido |
