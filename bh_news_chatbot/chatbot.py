@@ -10,7 +10,7 @@ import logging
 import os
 from typing import Optional
 
-from llm_provider import LLMProvider, create_provider
+from llm_provider import LLMProvider, create_provider, CONTEXT_LIMIT_CHARS
 
 log = logging.getLogger(__name__)
 
@@ -41,6 +41,7 @@ class BHNewsChatbot:
         self,
         articles: list[dict],
         provider: Optional[LLMProvider] = None,
+        max_context_chars: Optional[int] = None,
         # Parâmetros legados para retrocompatibilidade
         api_key: Optional[str] = None,
     ):
@@ -49,6 +50,8 @@ class BHNewsChatbot:
             articles: lista de artigos com chaves url, title, date, body, area
             provider: instância de LLMProvider (Anthropic, Gemini, etc.)
                       Se None, usa AnthropicProvider com ANTHROPIC_API_KEY.
+            max_context_chars: limite de caracteres para o contexto do LLM.
+                               Se None, usa o limite padrão do provedor.
             api_key: (legado) chave Anthropic. Ignorado se provider for passado.
         """
         from news_scraper import format_articles_for_context
@@ -58,7 +61,18 @@ class BHNewsChatbot:
 
         self._provider = provider
         self._articles = articles
-        self._news_context = format_articles_for_context(articles)
+
+        if max_context_chars is None:
+            provider_key = provider.name.split()[0].lower()
+            max_context_chars = CONTEXT_LIMIT_CHARS.get(provider_key, 150_000)
+
+        log.info(
+            "Contexto: limite de %s chars para %d artigos",
+            f"{max_context_chars:,}", len(articles),
+        )
+        self._news_context = format_articles_for_context(
+            articles, max_total_chars=max_context_chars
+        )
         self._system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
             news_context=self._news_context
         )

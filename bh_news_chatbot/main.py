@@ -127,6 +127,18 @@ def parse_args():
         help=f"Atalho: usa o CSV local padrão ({DEFAULT_CSV.name}) como fonte de dados",
     )
     parser.add_argument(
+        "--context-size",
+        type=int,
+        default=None,
+        metavar="CHARS",
+        help=(
+            "Limite de caracteres para o contexto do LLM. "
+            "Se omitido, usa o máximo recomendado para o provedor escolhido "
+            "(Anthropic ~680K, Gemini ~3,5M, Maritaca ~430K). "
+            "Use 0 para incluir todos os documentos sem limite."
+        ),
+    )
+    parser.add_argument(
         "--categorize",
         action="store_true",
         help="Categoriza os artigos por conteúdo usando Claude antes de iniciar o chat",
@@ -343,9 +355,14 @@ def main():
             return
 
     # Inicia chatbot
+    max_chars = None if args.context_size is None else (args.context_size or None)
     log.info("Inicializando chatbot com %d artigos...", len(articles))
     try:
-        bot = BHNewsChatbot(articles=articles, provider=chat_provider)
+        bot = BHNewsChatbot(
+            articles=articles,
+            provider=chat_provider,
+            max_context_chars=max_chars,
+        )
     except ValueError as e:
         print(f"❌ {e}")
         sys.exit(1)

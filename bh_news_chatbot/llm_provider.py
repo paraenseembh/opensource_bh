@@ -21,6 +21,14 @@ MARITACA_BASE_URL    = "https://chat.maritaca.ai/api"
 MARITACA_CHAT_MODEL  = "sabia-4"
 MARITACA_FAST_MODEL  = "sabiazinho-4"
 
+# Limite de contexto em chars por provedor
+# (janela de tokens × ~3,5 chars/token, com margem de segurança)
+CONTEXT_LIMIT_CHARS = {
+    "anthropic": 680_000,   # 200K tokens
+    "gemini":    3_500_000, # 1M tokens
+    "maritaca":  430_000,   # 128K tokens
+}
+
 
 class LLMProvider(ABC):
     """Interface comum para provedores de LLM."""
