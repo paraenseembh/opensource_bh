@@ -37,10 +37,53 @@ pip install -r bh_news_chatbot/requirements.txt
 
 #### Configuração das chaves
 
+**Bash / Zsh (Linux e Mac)**
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-...   # para Anthropic
-export GEMINI_API_KEY=AIza...         # para Gemini
-export MARITACA_KEY=...               # para Maritaca AI
+export ANTHROPIC_API_KEY=sk-ant-...
+export GEMINI_API_KEY=AIza...
+export MARITACA_KEY=...
+```
+Para persistir entre sessões, adicione as linhas acima ao `~/.bashrc` ou `~/.zshrc`.
+
+**Windows — Prompt de Comando (CMD)**
+```cmd
+set ANTHROPIC_API_KEY=sk-ant-...
+set GEMINI_API_KEY=AIza...
+set MARITACA_KEY=...
+```
+> Válido apenas na sessão atual. Para tornar permanente: **Painel de Controle → Sistema → Variáveis de Ambiente**.
+
+**Windows — PowerShell**
+```powershell
+$env:ANTHROPIC_API_KEY = "sk-ant-..."
+$env:GEMINI_API_KEY    = "AIza..."
+$env:MARITACA_KEY      = "..."
+```
+Para persistir entre sessões no PowerShell:
+```powershell
+[System.Environment]::SetEnvironmentVariable("ANTHROPIC_API_KEY", "sk-ant-...", "User")
+[System.Environment]::SetEnvironmentVariable("GEMINI_API_KEY",    "AIza...",    "User")
+[System.Environment]::SetEnvironmentVariable("MARITACA_KEY",      "...",        "User")
+```
+
+**Fish shell**
+```fish
+set -x ANTHROPIC_API_KEY sk-ant-...
+set -x GEMINI_API_KEY AIza...
+set -x MARITACA_KEY ...
+```
+Para persistir entre sessões:
+```fish
+set -Ux ANTHROPIC_API_KEY sk-ant-...
+set -Ux GEMINI_API_KEY AIza...
+set -Ux MARITACA_KEY ...
+```
+
+**Alternativa universal — argumento na linha de comando**
+```bash
+python bh_news_chatbot/main.py --api-key sk-ant-...
+python bh_news_chatbot/main.py --gemini-key AIza...
+python bh_news_chatbot/main.py --maritaca-key ...
 ```
 
 #### Uso

@@ -48,12 +48,14 @@ BANNER = r"""
 
 HELP_TEXT = """
 Comandos especiais:
-  /ajuda      — mostra esta mensagem
-  /areas      — lista as áreas da planilha
-  /categorias — mostra distribuição de decretos por categoria legislativa
-  /resumo     — mostra quantos documentos foram carregados por área
-  /reiniciar  — reinicia o histórico da conversa
-  /sair       — encerra o chatbot
+  /ajuda        — mostra esta mensagem
+  /areas        — lista as áreas da planilha
+  /documentos   — lista todos os documentos carregados (lê da memória, não do LLM)
+  /documentos <área> — filtra documentos por área (ex: /documentos Orçamento)
+  /categorias   — mostra distribuição de decretos por categoria legislativa
+  /resumo       — mostra quantos documentos foram carregados por área
+  /reiniciar    — reinicia o histórico da conversa
+  /sair         — encerra o chatbot
 
 Exemplos de perguntas:
   "Quais decretos tratam de urbanismo e zoneamento?"
@@ -123,6 +125,18 @@ def parse_args():
         "--use-local-csv",
         action="store_true",
         help=f"Atalho: usa o CSV local padrão ({DEFAULT_CSV.name}) como fonte de dados",
+    )
+    parser.add_argument(
+        "--context-size",
+        type=int,
+        default=None,
+        metavar="CHARS",
+        help=(
+            "Limite de caracteres para o contexto do LLM. "
+            "Se omitido, usa o máximo recomendado para o provedor escolhido "
+            "(Anthropic ~680K, Gemini ~3,5M, Maritaca ~430K). "
+            "Use 0 para incluir todos os documentos sem limite."
+        ),
     )
     parser.add_argument(
         "--categorize",
@@ -209,6 +223,40 @@ def load_articles(args) -> list[dict]:
     return articles
 
 
+def _cmd_list_documents(articles: list[dict], area_filter: str | None = None):
+    """Lista todos os documentos da memória (não do contexto do LLM)."""
+    if area_filter:
+        subset = [
+            a for a in articles
+            if area_filter.lower() in a.get("area", "").lower()
+        ]
+        if not subset:
+            print(f"\n⚠️  Nenhum documento encontrado para a área '{area_filter}'.")
+            print("    Use /areas para ver as áreas disponíveis.")
+            return
+        title = f"📄 Documentos — área '{area_filter}' ({len(subset)} de {len(articles)})"
+    else:
+        subset = articles
+        title = f"📄 Todos os documentos ({len(subset)} no total)"
+
+    print(f"\n{title}")
+    print("─" * 60)
+
+    by_area: dict[str, list[dict]] = {}
+    for art in subset:
+        by_area.setdefault(art.get("area", "Geral"), []).append(art)
+
+    for area in sorted(by_area):
+        print(f"\n  [{area}] — {len(by_area[area])} doc(s)")
+        for art in by_area[area]:
+            date = art.get("date", "")
+            title_str = art.get("title", "(sem título)")
+            date_str = f"[{date}] " if date else ""
+            print(f"    • {date_str}{title_str}")
+
+    print()
+
+
 def run_interactive(chatbot: BHNewsChatbot):
     """Loop interativo do chatbot."""
     print(BANNER)
@@ -227,6 +275,7 @@ def run_interactive(chatbot: BHNewsChatbot):
             continue
 
         cmd = user_input.lower()
+        cmd_base = cmd.split()[0] if cmd.split() else ""
 
         if cmd in ("/sair", "/exit", "/quit"):
             print("Até logo!")
@@ -239,6 +288,10 @@ def run_interactive(chatbot: BHNewsChatbot):
             print("\n📋 Áreas disponíveis (da planilha):")
             for area in areas:
                 print(f"  • {area}")
+            continue
+        elif cmd_base == "/documentos":
+            area_filter = user_input[len("/documentos"):].strip() or None
+            _cmd_list_documents(chatbot._articles, area_filter)
             continue
         elif cmd in ("/categorias",):
             if any(a.get("categories") for a in chatbot._articles):
@@ -302,9 +355,14 @@ def main():
             return
 
     # Inicia chatbot
+    max_chars = None if args.context_size is None else (args.context_size or None)
     log.info("Inicializando chatbot com %d artigos...", len(articles))
     try:
-        bot = BHNewsChatbot(articles=articles, provider=chat_provider)
+        bot = BHNewsChatbot(
+            articles=articles,
+            provider=chat_provider,
+            max_context_chars=max_chars,
+        )
     except ValueError as e:
         print(f"❌ {e}")
         sys.exit(1)
