@@ -1,6 +1,6 @@
 # Chatbot de Decretos Municipais de BH — Python
 
-Chatbot interativo que lê links de decretos e atos normativos do município de Belo Horizonte a partir de uma planilha do Google Sheets, raspa o conteúdo dos documentos e responde perguntas sobre a legislação municipal usando Claude (Anthropic) ou Google Gemini.
+Chatbot interativo que responde perguntas sobre legislação e atos normativos do município de Belo Horizonte. Suporta duas fontes de dados e três provedores de IA.
 
 ---
 
@@ -12,24 +12,100 @@ pip install -r requirements.txt
 
 ---
 
-## Configuração de chaves de API
+## Fontes de dados
 
-Defina a variável de ambiente do provedor que for usar:
+### CSV local (recomendado)
+
+O repositório inclui `legislacao_2026_04.csv` com 5197 registros de decretos, portarias e leis municipais. Não requer internet para carregar os dados.
 
 ```bash
-# Anthropic (Claude)
+# Usa o CSV local padrão
+python main.py --use-local-csv
+
+# CSV em outro caminho
+python main.py --csv /caminho/para/legislacao.csv
+```
+
+### Google Sheets (padrão original)
+
+Lê links de uma planilha pública, raspa o conteúdo das páginas e usa o texto completo como contexto. Requer internet e a planilha deve ser pública.
+
+```bash
+python main.py --sheet-id SEU_ID_AQUI
+```
+
+> O ID da planilha está na URL: `https://docs.google.com/spreadsheets/d/**SEU_ID**/edit`
+> A planilha deve estar configurada em **Arquivo → Compartilhar → "Qualquer pessoa com o link" → Leitor**.
+
+---
+
+## Configuração das chaves de API
+
+Escolha o método adequado ao seu sistema operacional.
+
+### Bash / Zsh (Linux e Mac)
+
+```bash
 export ANTHROPIC_API_KEY=sk-ant-...
-
-# Google Gemini
 export GEMINI_API_KEY=AIza...
-
-# Maritaca (Sabiá — modelos em português)
 export MARITACA_KEY=...
 ```
 
-Alternativamente, passe a chave diretamente na linha de comando com `--api-key`, `--gemini-key` ou `--maritaca-key`.
+Para persistir entre sessões, adicione as linhas ao `~/.bashrc` ou `~/.zshrc`.
 
-### Provedores disponíveis
+### Windows — Prompt de Comando (CMD)
+
+```cmd
+set ANTHROPIC_API_KEY=sk-ant-...
+set GEMINI_API_KEY=AIza...
+set MARITACA_KEY=...
+```
+
+> Válido apenas na sessão atual. Para tornar permanente: **Painel de Controle → Sistema → Variáveis de Ambiente**.
+
+### Windows — PowerShell
+
+```powershell
+$env:ANTHROPIC_API_KEY = "sk-ant-..."
+$env:GEMINI_API_KEY    = "AIza..."
+$env:MARITACA_KEY      = "..."
+```
+
+Para persistir entre sessões:
+
+```powershell
+[System.Environment]::SetEnvironmentVariable("ANTHROPIC_API_KEY", "sk-ant-...", "User")
+[System.Environment]::SetEnvironmentVariable("GEMINI_API_KEY",    "AIza...",    "User")
+[System.Environment]::SetEnvironmentVariable("MARITACA_KEY",      "...",        "User")
+```
+
+### Fish shell
+
+```fish
+set -x ANTHROPIC_API_KEY sk-ant-...
+set -x GEMINI_API_KEY AIza...
+set -x MARITACA_KEY ...
+```
+
+Para persistir entre sessões:
+
+```fish
+set -Ux ANTHROPIC_API_KEY sk-ant-...
+set -Ux GEMINI_API_KEY AIza...
+set -Ux MARITACA_KEY ...
+```
+
+### Alternativa — argumento direto na linha de comando
+
+```bash
+python main.py --api-key sk-ant-...
+python main.py --gemini-key AIza...
+python main.py --maritaca-key ...
+```
+
+---
+
+## Provedores de IA disponíveis
 
 | Provedor | Flag | Env var | Modelo chat | Modelo rápido |
 |---|---|---|---|---|
@@ -41,19 +117,27 @@ Alternativamente, passe a chave diretamente na linha de comando com `--api-key`,
 
 ---
 
-## Como controlar a quantidade de artigos lidos
+## Limite de contexto por provedor
 
-O parâmetro `--max-per-area` define o número máximo de artigos baixados **por área temática** da planilha. O padrão é `10`.
+Cada provedor tem uma janela de contexto diferente, o que determina quantos documentos do CSV cabem com texto completo. O chatbot aplica automaticamente o limite correto para cada provedor.
+
+| Provedor | Janela de contexto | Docs do CSV com texto completo |
+|---|---|---|
+| Google Gemini | 1M tokens (~3,5M chars) | **todos os 2.755** |
+| Anthropic Claude | 200K tokens (~680K chars) | ~1.343 |
+| Maritaca Sabiá-4 | 128K tokens (~430K chars) | ~853 |
+
+Independente do limite de texto completo, o chatbot sempre inclui no contexto um **índice compacto** (título + área + data) de todos os documentos, e o comando `/documentos` lista todos via memória sem custo de tokens.
+
+### Ajuste manual com `--context-size`
 
 ```bash
-# Ler até 5 artigos por área (mais rápido, menos contexto)
-python main.py --max-per-area 5
+# Define o limite manualmente em caracteres
+python main.py --use-local-csv --context-size 500000
 
-# Ler até 20 artigos por área (mais contexto, mais lento)
-python main.py --max-per-area 20
+# Sem limite (use com cautela — pode ultrapassar a janela do modelo)
+python main.py --use-local-csv --context-size 0
 ```
-
-> **Dica:** valores altos aumentam o tempo de download e o custo da API (mais tokens). Para testes, use `--max-per-area 3`.
 
 ---
 
@@ -61,14 +145,17 @@ python main.py --max-per-area 20
 
 | Parâmetro | Descrição | Padrão |
 |---|---|---|
-| `--max-per-area N` | Máximo de artigos por área temática | `10` |
 | `--provider` | Provedor: `anthropic`, `gemini` ou `maritaca` | `anthropic` |
 | `--api-key KEY` | Chave da API Anthropic | `ANTHROPIC_API_KEY` |
 | `--gemini-key KEY` | Chave da API Google Gemini | `GEMINI_API_KEY` |
 | `--maritaca-key KEY` | Chave da API Maritaca | `MARITACA_KEY` |
 | `--model NOME` | Modelo específico (ex: `sabiazinho-4`) | padrão do provedor |
+| `--use-local-csv` | Usa o CSV local `legislacao_2026_04.csv` | — |
+| `--csv ARQUIVO` | Caminho para um CSV de legislação alternativo | — |
+| `--context-size N` | Limite de chars para o contexto (0 = sem limite) | automático por provedor |
 | `--sheet-id ID` | ID da planilha do Google Sheets | ID padrão |
-| `--refresh` | Ignora o cache e re-baixa todos os artigos | — |
+| `--max-per-area N` | Máximo de artigos por área (apenas Google Sheets) | `10` |
+| `--refresh` | Ignora o cache e re-baixa todos os artigos (Google Sheets) | — |
 | `--categorize` | Categoriza artigos por conteúdo antes do chat | — |
 | `--only-categorize` | Apenas categoriza e exibe o relatório, sem abrir o chat | — |
 | `--log-level` | Nível de detalhe dos logs: `DEBUG` `INFO` `WARNING` `ERROR` | `INFO` |
@@ -76,26 +163,23 @@ python main.py --max-per-area 20
 ### Exemplos
 
 ```bash
-# Uso básico com Anthropic
-python main.py
+# CSV local com Gemini (todos os 2755 documentos no contexto)
+python main.py --use-local-csv --provider gemini
 
-# Com Gemini, 5 artigos por área e categorização
+# CSV local com Maritaca (Sabiá)
+python main.py --use-local-csv --provider maritaca
+
+# CSV local com Anthropic e modelo rápido
+python main.py --use-local-csv --provider anthropic --model claude-haiku-4-5-20251001
+
+# Google Sheets com Gemini, 5 artigos por área e categorização
 python main.py --provider gemini --max-per-area 5 --categorize
 
-# Forçar re-download e usar modelo específico
-python main.py --refresh --model claude-haiku-4-5-20251001
-
-# Apenas ver o relatório de categorias sem abrir o chat
-python main.py --only-categorize --provider gemini
-
-# Usar Maritaca (Sabiá) como provedor
-python main.py --provider maritaca
-
-# Maritaca com modelo rápido explícito
-python main.py --provider maritaca --model sabiazinho-4
+# Apenas ver o relatório de categorias
+python main.py --use-local-csv --only-categorize
 
 # Logs detalhados para depuração
-python main.py --log-level DEBUG
+python main.py --use-local-csv --log-level DEBUG
 ```
 
 ---
@@ -104,12 +188,16 @@ python main.py --log-level DEBUG
 
 | Comando | Descrição |
 |---|---|
-| `/areas` | Lista as áreas temáticas da planilha (ex: Saúde, Educação) |
+| `/documentos` | Lista todos os documentos carregados (lê da memória, não do LLM) |
+| `/documentos <área>` | Filtra documentos por área (ex: `/documentos Orçamento`) |
+| `/areas` | Lista as áreas temáticas disponíveis |
 | `/categorias` | Exibe quantos artigos há em cada categoria de conteúdo |
 | `/resumo` | Mostra quantos artigos foram carregados por área |
 | `/reiniciar` | Limpa o histórico da conversa e começa do zero |
 | `/ajuda` | Exibe todos os comandos disponíveis |
 | `/sair` | Encerra o chatbot |
+
+> `/documentos` sempre lista todos os registros da memória (até 2.755), independente do número de documentos no contexto do LLM.
 
 ---
 
@@ -137,7 +225,7 @@ Quando `--categorize` é usado, cada decreto recebe até 3 categorias automatica
 
 ## Cache
 
-Os downloads são salvos em `cache/` para evitar re-requisições desnecessárias:
+Os downloads são salvos em `cache/` para evitar re-requisições desnecessárias (apenas no modo Google Sheets):
 
 | Arquivo | Conteúdo |
 |---|---|
@@ -150,69 +238,47 @@ Para limpar o cache e baixar tudo novamente:
 python main.py --refresh
 ```
 
-Ou apague os arquivos manualmente:
-
-```bash
-rm cache/news_cache.json cache/categories_cache.json
-```
-
 ---
 
 ## Verificação e testes das APIs
 
-O script `test_api.py` verifica se as APIs de IA estão acessíveis e se o tratamento de erros funciona corretamente. Ele roda dois grupos de testes:
-
-| Grupo | O que testa | Precisa de chave válida? |
-|---|---|---|
-| **Funcionais** | `create_provider()`, `complete()`, `stream()` | Sim |
-| **Erros esperados** | chave vazia, chave inválida, modelo inexistente, provider desconhecido | Não (exceto modelo inexistente) |
-
-### Como executar
+### Teste geral — todos os provedores
 
 ```bash
-# Testa ambos os provedores (funcionais + erros)
-python bh_news_chatbot/test_api.py
+# Testa todos os provedores configurados
+python test_api.py
 
 # Testa apenas um provedor
-python bh_news_chatbot/test_api.py --provider anthropic
-python bh_news_chatbot/test_api.py --provider gemini
+python test_api.py --provider anthropic
+python test_api.py --provider gemini
+python test_api.py --provider maritaca
 
-# Apenas os testes de erros esperados (não precisa de chave)
-python bh_news_chatbot/test_api.py --only-errors
+# Apenas os testes de erros (não precisa de chave válida)
+python test_api.py --only-errors
 ```
 
-### Saída esperada (com chave configurada)
+### Teste dedicado — Maritaca AI
 
-```
-Verificação de APIs — BH News Chatbot
-───────────────────────────────────────────────────────
-  ANTHROPIC_API_KEY : configurada
-  GEMINI_API_KEY    : configurada
+```bash
+# Roda todos os testes (configuração + erros + funcionais)
+python test_maritaca.py
 
-Geral
-───────────────────────────────────────────────────────
-  erros gerais (independente de provedor)
-  ✓ provider desconhecido → ValueError
-  ✓ chave vazia anthropic → ValueError
-  ✓ chave vazia gemini → ValueError
+# Usa o modelo rápido (sabiazinho-4) nos testes funcionais
+python test_maritaca.py --fast
 
-Anthropic
-───────────────────────────────────────────────────────
-  testes funcionais
-  ✓ create_provider()
-  ✓ complete()
-  ✓ stream()
-
-  erros esperados
-  ✓ chave vazia → ValueError
-  ✓ chave inválida → complete() falha
-  ✓ chave inválida → stream() falha
-  ✓ modelo inexistente → complete() falha
-...
-  PASSOU  N/N teste(s)
+# Somente erros e configuração (sem chave válida)
+python test_maritaca.py --only-errors
 ```
 
-### Casos de erro testados
+O script `test_maritaca.py` executa três grupos de verificações:
+
+| Grupo | O que verifica |
+|---|---|
+| Configuração | `MARITACA_BASE_URL`, nomes de modelos, alias `sabia` |
+| Erros esperados | Chave vazia, chave inválida, modelo inexistente |
+| Testes funcionais | `complete()`, `stream()`, conversa multi-turno |
+
+### Casos de erro testados (ambos os scripts)
 
 | Caso | Comportamento esperado |
 |---|---|
@@ -222,8 +288,6 @@ Anthropic
 | `stream()` com chave inválida | Exceção de autenticação da API |
 | `complete()` com modelo inexistente | Exceção de modelo não encontrado |
 
-> Os testes de erro **passam quando a exceção esperada é lançada**. Se nenhuma exceção for lançada, o teste falha.
-
 ---
 
 ## Depuração do cache
@@ -232,37 +296,17 @@ O script `debug.py` inspeciona os arquivos de cache sem precisar executar o chat
 
 ```bash
 # Resumo: total de artigos, distribuição por área, falhas
-python bh_news_chatbot/debug.py
+python debug.py
 
 # Conteúdo completo de cada artigo
-python bh_news_chatbot/debug.py --verbose
+python debug.py --verbose
 
 # Inspecionar uma URL específica
-python bh_news_chatbot/debug.py --url https://...
+python debug.py --url https://...
 
 # Listar apenas URLs que falharam ou ficaram sem conteúdo
-python bh_news_chatbot/debug.py --failures
+python debug.py --failures
 
 # Exportar todos os artigos para um arquivo JSON
-python bh_news_chatbot/debug.py --export artigos.json
-```
-
----
-
-## Planilha Google Sheets
-
-A planilha deve estar pública para que o scraper consiga acessá-la:
-
-1. Abra a planilha no Google Sheets
-2. **Arquivo → Compartilhar → "Qualquer pessoa com o link" → Leitor**
-
-Para usar uma planilha diferente da padrão:
-
-```bash
-python main.py --sheet-id SEU_ID_AQUI
-```
-
-O ID está na URL da planilha:
-```
-https://docs.google.com/spreadsheets/d/SEU_ID_AQUI/edit
+python debug.py --export artigos.json
 ```
