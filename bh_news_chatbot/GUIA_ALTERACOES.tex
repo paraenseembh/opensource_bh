@@ -1,0 +1,434 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{parskip}
+\usepackage{fancyhdr}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{mdframed}
+
+% Cores
+\definecolor{codebg}{HTML}{F4F4F4}
+\definecolor{codeframe}{HTML}{CCCCCC}
+\definecolor{linkcolor}{HTML}{1A56DB}
+\definecolor{notecolor}{HTML}{FFF8E1}
+\definecolor{noteframe}{HTML}{F59E0B}
+\definecolor{sectioncolor}{HTML}{1E3A5F}
+
+% Hyperlinks
+\hypersetup{
+  colorlinks=true,
+  linkcolor=linkcolor,
+  urlcolor=linkcolor,
+  pdftitle={Guia de Alterações — BH News Chatbot},
+  pdfauthor={BH News Chatbot},
+}
+
+% Código
+\lstdefinestyle{bash}{
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{codeframe},
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  breakatwhitespace=false,
+  keepspaces=true,
+  columns=flexible,
+  showstringspaces=false,
+  commentstyle=\color{gray}\itshape,
+  morecomment=[l]{\#},
+  xleftmargin=8pt,
+  xrightmargin=8pt,
+  aboveskip=6pt,
+  belowskip=6pt,
+}
+\lstset{style=bash}
+
+% Títulos
+\titleformat{\section}{\large\bfseries\color{sectioncolor}}{}{0em}{}[\titlerule]
+\titleformat{\subsection}{\normalsize\bfseries}{}{0em}{}
+\titleformat{\subsubsection}{\normalsize\itshape}{}{0em}{}
+\titlespacing{\section}{0pt}{18pt}{8pt}
+\titlespacing{\subsection}{0pt}{12pt}{4pt}
+
+% Cabeçalho/rodapé
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textit{BH News Chatbot}}
+\fancyhead[R]{\small\textit{Guia de Alterações}}
+\fancyfoot[C]{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% Nota de destaque
+\newenvironment{nota}{%
+  \begin{mdframed}[backgroundcolor=notecolor,linecolor=noteframe,linewidth=1.5pt,
+    leftmargin=0pt,rightmargin=0pt,innerleftmargin=10pt,innerrightmargin=10pt,
+    innertopmargin=8pt,innerbottommargin=8pt]
+  \small
+}{%
+  \end{mdframed}
+}
+
+% Tabela com fundo cinza no header
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+
+\begin{document}
+
+% ----- Capa -----
+\begin{titlepage}
+  \centering
+  \vspace*{3cm}
+  {\Huge\bfseries\color{sectioncolor} Guia de Alterações\par}
+  \vspace{0.5cm}
+  {\Large BH News Chatbot\par}
+  \vspace{1.5cm}
+  \rule{0.5\linewidth}{0.4pt}\par
+  \vspace{1cm}
+  {\large Este documento descreve as funcionalidades adicionadas recentemente ao projeto,
+  ensina como usá-las e responde às dúvidas mais comuns.\par}
+  \vfill
+  {\small Repositório: \href{https://github.com/paraenseembh/opensource_bh}%
+    {github.com/paraenseembh/opensource\_bh}\par}
+  \vspace{0.3cm}
+  {\small Branch: \texttt{claude/bh-news-chatbot-NWtrw}\par}
+  \vspace{1cm}
+\end{titlepage}
+
+% ----- Sumário -----
+\tableofcontents
+\newpage
+
+% ===========================================================================
+\section{O que foi adicionado}
+
+\begin{tabularx}{\linewidth}{lLl}
+  \toprule
+  \textbf{Alteração} & \textbf{Descrição} & \textbf{Arquivo} \\
+  \midrule
+  Script de verificação & Testa conectividade, \texttt{complete()}, \texttt{stream()} e
+    tratamento de erros de cada provedor & \texttt{test\_api.py} \\
+  \addlinespace
+  Testes de erros & Verifica que o sistema rejeita chaves inválidas, modelos inexistentes
+    e provedores desconhecidos & \texttt{test\_api.py} \\
+  \addlinespace
+  Maritaca (Sabiá) & Terceiro provedor de LLM, focado em português brasileiro
+    & \texttt{llm\_provider.py} \\
+  \addlinespace
+  Dependência \texttt{openai} & Necessária para comunicar com a API compatível da Maritaca
+    & \texttt{requirements.txt} \\
+  \addlinespace
+  Flag \texttt{-{}-maritaca-key} & Permite passar a chave da Maritaca pela linha de comando
+    & \texttt{main.py} \\
+  \bottomrule
+\end{tabularx}
+
+% ===========================================================================
+\section{Script de verificação de APIs (\texttt{test\_api.py})}
+
+\subsection{Para que serve}
+
+Antes de rodar o chatbot, use este script para confirmar que suas chaves de API estão
+corretas e que os provedores estão respondendo. Ele executa dois grupos de testes:
+
+\begin{itemize}
+  \item \textbf{Testes funcionais:} chamam a API de verdade com uma mensagem simples.
+    Precisam de chave válida.
+  \item \textbf{Testes de erros esperados:} verificam que o sistema rejeita situações
+    inválidas corretamente. \textbf{Não precisam de chave.}
+\end{itemize}
+
+\subsection{Como executar}
+
+\begin{lstlisting}
+# Testa todos os provedores configurados
+python bh_news_chatbot/test_api.py
+
+# Testa apenas um provedor
+python bh_news_chatbot/test_api.py --provider anthropic
+python bh_news_chatbot/test_api.py --provider gemini
+python bh_news_chatbot/test_api.py --provider maritaca
+
+# Roda apenas os testes de erros (nao precisa de nenhuma chave)
+python bh_news_chatbot/test_api.py --only-errors
+\end{lstlisting}
+
+\subsection{Como interpretar a saída}
+
+\begin{lstlisting}
+[check]  verde    -- teste passou
+[x]      vermelho -- teste falhou (veja o motivo na mesma linha)
+[-]      amarelo  -- teste pulado (motivo entre parenteses)
+\end{lstlisting}
+
+\textbf{Exemplo de saída com chave configurada:}
+
+\begin{lstlisting}
+Maritaca
+-------------------------------------------------
+  testes funcionais
+  [ok] create_provider()   Maritaca (sabia-4)
+  [ok] complete()          1.3s  "OK"
+  [ok] stream()            1.1s  4 token(s)  "OK"
+
+  erros esperados
+  [ok] chave vazia -> ValueError
+  [ok] chave invalida -> complete() falha
+  [ok] chave invalida -> stream() falha
+  [ok] modelo inexistente -> complete() falha
+\end{lstlisting}
+
+\textbf{Exemplo sem chave configurada:}
+
+\begin{lstlisting}
+Maritaca
+-------------------------------------------------
+  testes funcionais
+  [-]  todos os testes funcionais (MARITACA_KEY nao configurada)
+
+  erros esperados
+  [ok] chave vazia -> ValueError
+  [ok] chave invalida -> complete() falha  (ModuleNotFoundError)
+  [ok] chave invalida -> stream() falha
+  [-]  modelo inexistente -> complete() falha (requer chave valida)
+\end{lstlisting}
+
+\begin{nota}
+Os testes funcionais ficam com \texttt{-{}-} se a chave não estiver configurada. Isso é
+normal --- configure a chave e rode novamente.
+\end{nota}
+
+\subsection{O que cada teste verifica}
+
+\begin{tabularx}{\linewidth}{lL}
+  \toprule
+  \textbf{Teste} & \textbf{O que valida} \\
+  \midrule
+  \texttt{create\_provider()} & A fábrica cria o objeto do provedor sem erros \\
+  \texttt{complete()} & A API responde a uma mensagem simples \\
+  \texttt{stream()} & A API retorna tokens em streaming \\
+  chave vazia $\to$ ValueError & O sistema rejeita chave em branco antes de chamar a API \\
+  chave inválida $\to$ complete() falha & A API retorna erro de autenticação para chave falsa \\
+  chave inválida $\to$ stream() falha & Idem, no modo streaming \\
+  modelo inexistente $\to$ complete() falha & A API retorna erro para nome de modelo inválido \\
+  \bottomrule
+\end{tabularx}
+
+% ===========================================================================
+\section{Integração com Maritaca.ai (Sabiá)}
+
+\subsection{O que é a Maritaca}
+
+A \href{https://maritaca.ai}{Maritaca AI} é uma empresa brasileira que desenvolve modelos
+de linguagem otimizados para o português. Os modelos da família \textbf{Sabiá} têm
+desempenho superior em textos em português em relação a modelos genéricos do mesmo tamanho.
+
+\subsection{Modelos disponíveis}
+
+\begin{tabularx}{\linewidth}{llL}
+  \toprule
+  \textbf{Modelo} & \textbf{Custo} & \textbf{Uso recomendado} \\
+  \midrule
+  \texttt{sabia-4} & Mais alto & Chat principal, respostas de maior qualidade \\
+  \texttt{sabiazinho-4} & Mais baixo & Categorização, tarefas rápidas, menor latência \\
+  \bottomrule
+\end{tabularx}
+
+\subsection{Como obter a chave}
+
+\begin{enumerate}
+  \item Acesse \href{https://plataforma.maritaca.ai/chaves-de-api}{plataforma.maritaca.ai/chaves-de-api}
+  \item Crie uma conta (novos usuários recebem R\$\,20 de crédito)
+  \item Gere uma nova chave de API
+\end{enumerate}
+
+\subsection{Como configurar}
+
+\begin{lstlisting}
+# Variavel de ambiente (recomendado)
+export MARITACA_KEY=sua-chave-aqui
+
+# Ou passe direto na linha de comando
+python bh_news_chatbot/main.py --provider maritaca --maritaca-key sua-chave-aqui
+\end{lstlisting}
+
+\subsection{Como usar no chatbot}
+
+\begin{lstlisting}
+# Uso basico com Sabia-4
+python bh_news_chatbot/main.py --provider maritaca
+
+# Com modelo rapido (menor custo)
+python bh_news_chatbot/main.py --provider maritaca --model sabiazinho-4
+
+# Com categorizacao e 5 artigos por area
+python bh_news_chatbot/main.py --provider maritaca --max-per-area 5 --categorize
+
+# Apenas categorizar sem abrir o chat
+python bh_news_chatbot/main.py --provider maritaca --only-categorize
+\end{lstlisting}
+
+\subsection{Verificar se a chave está funcionando}
+
+\begin{lstlisting}
+export MARITACA_KEY=sua-chave-aqui
+python bh_news_chatbot/test_api.py --provider maritaca
+\end{lstlisting}
+
+% ===========================================================================
+\section{Comparativo de provedores}
+
+\begin{tabularx}{\linewidth}{lllLL}
+  \toprule
+  \textbf{Provedor} & \textbf{Env var} & \textbf{Modelo chat} & \textbf{Modelo rápido} & \textbf{Foco} \\
+  \midrule
+  Anthropic & \texttt{ANTHROPIC\_API\_KEY} & \texttt{claude-sonnet-4-6} & \texttt{claude-haiku-4-5} & Geral \\
+  Google Gemini & \texttt{GEMINI\_API\_KEY} & \texttt{gemini-2.0-flash} & \texttt{gemini-2.0-flash} & Geral, multimodal \\
+  Maritaca & \texttt{MARITACA\_KEY} & \texttt{sabia-4} & \texttt{sabiazinho-4} & Português BR \\
+  \bottomrule
+\end{tabularx}
+
+\begin{nota}
+Para projetos de legislação municipal em português como este, a Maritaca tende a produzir
+respostas mais naturais e precisas no idioma.
+\end{nota}
+
+% ===========================================================================
+\section{Instalação após as alterações}
+
+Se você já tinha o projeto instalado, atualize as dependências para incluir o SDK
+\texttt{openai} (necessário para a Maritaca):
+
+\begin{lstlisting}
+pip install -r bh_news_chatbot/requirements.txt
+\end{lstlisting}
+
+Ou instale apenas o novo pacote:
+
+\begin{lstlisting}
+pip install "openai>=1.0.0"
+\end{lstlisting}
+
+% ===========================================================================
+\section{Perguntas frequentes}
+
+\subsection{Os testes de erros passam mesmo sem SDK instalada. Isso está certo?}
+
+Sim. Testes como ``chave inválida $\to$ complete() falha'' verificam apenas que
+\emph{alguma exceção é lançada}. Sem o SDK instalado, o Python lança
+\texttt{ModuleNotFoundError} antes mesmo de chamar a API --- o teste ainda passa porque o
+comportamento esperado (falha) ocorreu. Com o SDK instalado e chave inválida, seria lançado
+um \texttt{AuthenticationError} da API.
+
+\subsection{Por que os testes funcionais ficam como \texttt{-} (pulado)?}
+
+Porque a chave de API não está configurada. Configure a variável de ambiente e rode
+novamente:
+
+\begin{lstlisting}
+export ANTHROPIC_API_KEY=sk-ant-...
+python bh_news_chatbot/test_api.py --provider anthropic
+\end{lstlisting}
+
+\subsection{Posso usar mais de um provedor ao mesmo tempo?}
+
+Não simultaneamente --- você escolhe um por execução com \texttt{-{}-provider}. Mas pode
+ter as três chaves configuradas e alternar conforme precisar.
+
+\subsection{Como saber qual provedor está sendo usado no chat?}
+
+O banner inicial do chatbot exibe o nome do provedor ativo:
+
+\begin{lstlisting}
+Decretos carregados (Maritaca (sabia-4)):
+  * Area X: 10 documento(s)
+  ...
+\end{lstlisting}
+
+\subsection{O teste ``modelo inexistente'' fica como \texttt{-} mesmo com chave válida. Por quê?}
+
+Verifique se a chave está configurada com \texttt{export} e não apenas como assignment
+simples:
+
+\begin{lstlisting}
+export ANTHROPIC_API_KEY=sk-ant-...   # correto
+ANTHROPIC_API_KEY=sk-ant-...          # errado -- nao fica no ambiente do subprocesso
+\end{lstlisting}
+
+\subsection{O que fazer se \texttt{complete()} falhar com erro de autenticação?}
+
+\begin{enumerate}
+  \item Verifique se a chave está correta e sem espaços extras
+  \item Verifique se a chave não expirou ou foi revogada
+  \item Para Anthropic: confirme créditos em \href{https://console.anthropic.com}{console.anthropic.com}
+  \item Para Maritaca: confirme o saldo em \href{https://plataforma.maritaca.ai}{plataforma.maritaca.ai}
+  \item Para Gemini: confirme que a API está habilitada no \href{https://aistudio.google.com}{Google AI Studio}
+\end{enumerate}
+
+\subsection{Como usar o modelo rápido para reduzir custos?}
+
+O modelo rápido é usado automaticamente na categorização interna. Para o chat, passe
+\texttt{-{}-model} explicitamente:
+
+\begin{lstlisting}
+# Anthropic -- modelo barato
+python bh_news_chatbot/main.py --provider anthropic --model claude-haiku-4-5-20251001
+
+# Maritaca -- modelo barato
+python bh_news_chatbot/main.py --provider maritaca --model sabiazinho-4
+
+# Gemini -- flash ja e o padrao
+python bh_news_chatbot/main.py --provider gemini --model gemini-2.0-flash
+\end{lstlisting}
+
+\subsection{O token do GitHub é necessário para usar o chatbot?}
+
+Não. O token do GitHub é usado apenas para operações no repositório (push, pull, consultas
+à API). O chatbot precisa apenas das chaves de LLM: \texttt{ANTHROPIC\_API\_KEY},
+\texttt{GEMINI\_API\_KEY} ou \texttt{MARITACA\_KEY}.
+
+\begin{nota}
+\textbf{Importante:} nunca compartilhe tokens ou chaves de API em conversas, issues ou
+commits. Se isso acontecer, revogue imediatamente o token no painel do serviço correspondente.
+\end{nota}
+
+% ===========================================================================
+\section{Referência rápida de comandos}
+
+\begin{lstlisting}
+# Verificar APIs antes de usar
+python bh_news_chatbot/test_api.py
+
+# Inspecionar o cache de artigos
+python bh_news_chatbot/debug.py
+
+# Iniciar o chatbot (Anthropic)
+python bh_news_chatbot/main.py
+
+# Iniciar o chatbot (Gemini)
+python bh_news_chatbot/main.py --provider gemini
+
+# Iniciar o chatbot (Maritaca)
+python bh_news_chatbot/main.py --provider maritaca
+
+# Forcar re-download dos artigos
+python bh_news_chatbot/main.py --refresh
+
+# Categorizar artigos e ver relatorio
+python bh_news_chatbot/main.py --only-categorize
+
+# Limpar cache manualmente
+rm bh_news_chatbot/cache/news_cache.json
+rm bh_news_chatbot/cache/categories_cache.json
+\end{lstlisting}
+
+\end{document}
