@@ -1,0 +1,376 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{geometry}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{parskip}
+\usepackage{microtype}
+\usepackage{listings}
+\usepackage{hyperref}
+\usepackage{array}
+\usepackage{lmodern}
+
+\geometry{
+  a4paper,
+  top=2.5cm, bottom=2.5cm,
+  left=3cm, right=2.5cm,
+  headheight=15pt
+}
+
+% Cores
+\definecolor{bhblue}{RGB}{0, 82, 147}
+\definecolor{bhgray}{RGB}{90, 90, 90}
+\definecolor{codebg}{RGB}{245, 245, 245}
+\definecolor{codeframe}{RGB}{200, 200, 200}
+
+% Hiperlinks
+\hypersetup{
+  colorlinks=true,
+  linkcolor=bhblue,
+  urlcolor=bhblue,
+  citecolor=bhblue,
+  pdftitle={Opensource BH — Documentação do Projeto},
+  pdfauthor={paraenseembh},
+  pdfsubject={Legislação Municipal de Belo Horizonte}
+}
+
+% Títulos
+\titleformat{\section}
+  {\Large\bfseries\color{bhblue}}
+  {\thesection.}{0.6em}{}[\vspace{2pt}\color{bhblue}\rule{\linewidth}{0.8pt}]
+
+\titleformat{\subsection}
+  {\large\bfseries\color{bhgray}}
+  {\thesubsection.}{0.5em}{}
+
+\titleformat{\subsubsection}
+  {\normalsize\bfseries}
+  {\thesubsubsection.}{0.4em}{}
+
+% Código
+\lstset{
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{codeframe},
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  breakatwhitespace=true,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false,
+  upquote=true,
+  xleftmargin=8pt,
+  xrightmargin=8pt,
+  aboveskip=8pt,
+  belowskip=8pt,
+  extendedchars=false,
+}
+
+% Cabeçalho e rodapé
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{bhgray}Opensource BH}
+\fancyhead[R]{\small\color{bhgray}Documentação do Projeto}
+\fancyfoot[C]{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% Sem recuo de parágrafo, espaço entre parágrafos
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt}
+
+% ----------------------------------------------------------------
+\begin{document}
+
+% Página de título
+\begin{titlepage}
+  \centering
+  \vspace*{3cm}
+  {\Huge\bfseries\color{bhblue} Opensource BH\par}
+  \vspace{0.5cm}
+  {\Large\color{bhgray} Documentação do Projeto\par}
+  \vspace{2cm}
+  \rule{0.6\linewidth}{1pt}\par
+  \vspace{1.5cm}
+  {\large
+    Ferramentas abertas para consulta e exploração\\
+    da legislação municipal de \textbf{Belo Horizonte}
+  \par}
+  \vspace{3cm}
+  {\normalsize
+    Repositório: \href{https://github.com/paraenseembh/opensource_bh}%
+    {github.com/paraenseembh/opensource\_bh}\par
+  }
+  \vfill
+  {\small\color{bhgray} Maio de 2026}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% ================================================================
+\section{O que é este projeto?}
+
+Este repositório reúne ferramentas abertas para consultar e explorar a legislação municipal de \textbf{Belo Horizonte}. O foco é democratizar o acesso a decretos, portarias e leis municipais, tornando esses documentos pesquisáveis e compreensíveis por qualquer pessoa --- não apenas por advogados ou servidores públicos.
+
+O projeto nasce de uma ideia simples: os atos normativos da prefeitura estão publicados na internet, mas dispersos, difíceis de buscar e escritos em linguagem técnica. Com um chatbot e um motor de busca, qualquer cidadão pode perguntar em linguagem natural --- \textit{"quais decretos tratam de transporte público em 2026?"} --- e obter uma resposta compreensível.
+
+% ================================================================
+\section{Módulos do repositório}
+
+\begin{tabularx}{\linewidth}{lX}
+  \toprule
+  \textbf{Pasta} & \textbf{O que faz} \\
+  \midrule
+  \texttt{bh\_news\_chatbot/}    & Chatbot em Python que responde perguntas sobre a legislação municipal usando IA \\
+  \texttt{bh\_news\_chatbot\_r/} & A mesma ferramenta, reescrita em R para quem prefere essa linguagem \\
+  \texttt{corpus\_dom/}          & Pipeline de mineração: baixa e estrutura documentos do Diário Oficial do Município (DOM-BH) \\
+  \texttt{busca\_dom/}           & Motor de busca com interface web para pesquisar no corpus do DOM-BH \\
+  \texttt{legislacao\_2026\_04.csv} & Base de dados com 5.197 registros de decretos, portarias e leis (abril de 2026) \\
+  \bottomrule
+\end{tabularx}
+
+% ================================================================
+\section{Principais marcos do desenvolvimento}
+
+A tabela abaixo registra os commits mais relevantes, em ordem cronológica --- do mais antigo ao mais recente.
+
+\begin{longtable}{lp{10.5cm}}
+  \toprule
+  \textbf{Commit} & \textbf{O que foi feito} \\
+  \midrule
+  \endhead
+  \texttt{1bb853f} & Criação do chatbot inicial, lendo links de legislação a partir de uma planilha Google Sheets \\[4pt]
+  \texttt{0917368} & Adição de categorização automática de decretos por tema (urbanismo, saúde, educação etc.) via IA \\[4pt]
+  \texttt{f90c78f} & Suporte ao Google Gemini como provedor de IA, além do Claude (Anthropic) \\[4pt]
+  \texttt{6d82c97} & Versão do chatbot reescrita em linguagem R \\[4pt]
+  \texttt{1b661a1} & Correção do acesso ao Google Sheets (API descontinuada substituída) \\[4pt]
+  \texttt{601478b} & Adição do pipeline \texttt{corpus\_dom}: extração e estruturação dos PDFs e páginas do DOM-BH \\[4pt]
+  \texttt{48811ea} & Suporte a PDF e DOCX no scraper; exportação para JSONL e CSV \\[4pt]
+  \texttt{22c45ab} & Motor de busca \texttt{busca\_dom} com TF-IDF e interface Streamlit \\[4pt]
+  \texttt{c0b7bca} & Upload do CSV de legislação com mais de 5.000 registros \\[4pt]
+  \texttt{041ec3f} & Adaptação do projeto para foco nos decretos municipais de BH \\[4pt]
+  \texttt{8107507} & Adição da Maritaca AI (modelo Sabiá, IA brasileira) como terceiro provedor \\[4pt]
+  \texttt{a5a671d} & Script de verificação das APIs dos três provedores \\[4pt]
+  \texttt{5647369} & Testes dedicados para a Maritaca AI com cobertura de erros \\[4pt]
+  \texttt{b120473} & Atualização da documentação principal do README \\
+  \bottomrule
+\end{longtable}
+
+% ================================================================
+\section{Dependências}
+
+\subsection{Python --- Chatbot (\texttt{bh\_news\_chatbot/})}
+
+\begin{lstlisting}
+anthropic>=0.40.0       # API do Claude (Anthropic)
+google-genai>=1.0.0     # API do Google Gemini
+openai>=1.0.0           # Compatibilidade OpenAI (usada pela Maritaca)
+beautifulsoup4>=4.12.0  # Raspagem de paginas web
+lxml>=5.0.0             # Parser HTML/XML
+requests>=2.32.0        # Requisicoes HTTP
+\end{lstlisting}
+
+\subsection{Python --- Corpus DOM (\texttt{corpus\_dom/})}
+
+\begin{lstlisting}
+pandas>=2.0.0                   # Manipulacao de dados tabulares
+requests>=2.31.0                # Requisicoes HTTP
+beautifulsoup4>=4.12.0          # Raspagem de HTML
+lxml>=4.9.0                     # Parser HTML/XML
+mysql-connector-python>=8.3.0   # Conexao com banco de dados MySQL
+python-dotenv>=1.0.0            # Leitura de variaveis de ambiente
+pdfplumber>=0.10.0              # Extracao de texto de PDFs
+python-docx>=1.0.0              # Leitura de arquivos DOCX
+\end{lstlisting}
+
+\subsection{Python --- Busca DOM (\texttt{busca\_dom/})}
+
+\begin{lstlisting}
+pandas>=2.0.0           # Manipulacao de dados
+scikit-learn>=1.4.0     # Algoritmo de busca TF-IDF
+streamlit>=1.35.0       # Interface web interativa
+python-dotenv>=1.0.0    # Leitura de variaveis de ambiente
+\end{lstlisting}
+
+\subsection{R --- Chatbot (\texttt{bh\_news\_chatbot\_r/})}
+
+\begin{lstlisting}
+httr2       # Requisicoes HTTP
+rvest       # Raspagem de paginas web
+jsonlite    # Leitura e escrita de JSON
+readr       # Leitura de CSV
+rlang       # Utilitarios de programacao em R
+optparse    # Argumentos de linha de comando
+\end{lstlisting}
+
+% ================================================================
+\section{Para quem não tem experiência com programação}
+
+Esta seção é uma introdução gentil para quem quer rodar o projeto, mas nunca usou Git ou Python antes. Não se preocupe --- você não precisa entender tudo de uma vez. Cada passo é simples quando feito um de cada vez.
+
+\subsection{O que é código aberto (opensource)?}
+
+Um projeto \textbf{opensource} é aquele cujo código-fonte está disponível publicamente para qualquer pessoa ler, usar, modificar e distribuir. Pense como uma receita de bolo publicada na internet: qualquer um pode copiar, adaptar e melhorar.
+
+Este projeto segue essa filosofia. Ele está disponível gratuitamente, aceita contribuições de qualquer pessoa e foi construído colaborativamente, usando ferramentas que também são abertas.
+
+Plataformas como o \textbf{GitHub} hospedam projetos opensource e permitem que pessoas do mundo inteiro colaborem. O endereço deste projeto é \href{https://github.com/paraenseembh/opensource_bh}{\texttt{github.com/paraenseembh/opensource\_bh}}.
+
+\subsection{O que é Git e por que usamos?}
+
+\textbf{Git} é um sistema que registra todas as mudanças feitas no código ao longo do tempo. É como um histórico de versões, mas muito mais poderoso: você pode ver quem mudou o quê, quando, e por quê. Se algo der errado, dá para voltar a uma versão anterior.
+
+Quando você ``clona'' um repositório, está baixando uma cópia completa do projeto, incluindo todo esse histórico.
+
+\subsubsection{Instalando o Git}
+
+\begin{itemize}
+  \item \textbf{Linux (Ubuntu/Debian):} \lstinline|sudo apt install git|
+  \item \textbf{Mac:} \lstinline|brew install git| (ou baixar em \href{https://git-scm.com}{git-scm.com})
+  \item \textbf{Windows:} baixar o instalador em \href{https://git-scm.com/downloads}{git-scm.com/downloads}
+\end{itemize}
+
+\subsubsection{Clonando o repositório}
+
+Abra o terminal e digite:
+
+\begin{lstlisting}
+git clone https://github.com/paraenseembh/opensource_bh.git
+cd opensource_bh
+\end{lstlisting}
+
+Para baixar atualizações futuras sem clonar de novo:
+
+\begin{lstlisting}
+git pull
+\end{lstlisting}
+
+\subsubsection{Comandos Git úteis}
+
+\begin{tabularx}{\linewidth}{lX}
+  \toprule
+  \textbf{Comando} & \textbf{O que faz} \\
+  \midrule
+  \texttt{git status}        & Mostra o que mudou desde o último registro \\
+  \texttt{git log --oneline} & Exibe o histórico de commits de forma compacta \\
+  \texttt{git pull}          & Baixa as últimas atualizações do projeto \\
+  \texttt{git checkout X}    & Muda para a branch (versão) chamada X \\
+  \bottomrule
+\end{tabularx}
+
+\subsection{O que é Python e como instalar?}
+
+\textbf{Python} é uma linguagem de programação muito usada em ciência de dados, automação e inteligência artificial. O chatbot e os scripts deste projeto são escritos em Python.
+
+Baixe a versão 3.10 ou mais recente em \href{https://python.org/downloads}{\texttt{python.org/downloads}}. No Windows, durante a instalação, marque a opção \textbf{``Add Python to PATH''}.
+
+Verifique se funcionou:
+
+\begin{lstlisting}
+python --version
+\end{lstlisting}
+
+\subsubsection{Instalando as dependências}
+
+As bibliotecas usadas pelo projeto estão listadas em \texttt{requirements.txt}. Para instalar tudo de uma vez:
+
+\begin{lstlisting}
+pip install -r bh_news_chatbot/requirements.txt
+\end{lstlisting}
+
+\subsubsection{Ambientes virtuais (boa prática)}
+
+Um \textbf{ambiente virtual} isola as bibliotecas deste projeto sem interferir no resto do sistema:
+
+\begin{lstlisting}
+# Cria o ambiente (so precisa fazer uma vez)
+python -m venv .venv
+
+# Ativa - Linux/Mac
+source .venv/bin/activate
+
+# Ativa - Windows
+.venv\Scripts\activate
+
+# Instala as dependencias dentro do ambiente
+pip install -r bh_news_chatbot/requirements.txt
+\end{lstlisting}
+
+Para desativar quando terminar:
+
+\begin{lstlisting}
+deactivate
+\end{lstlisting}
+
+\subsection{Rodando o chatbot}
+
+Com as dependências instaladas e uma chave de API configurada:
+
+\begin{lstlisting}
+# Usando a base de dados local
+python bh_news_chatbot/main.py --use-local-csv
+\end{lstlisting}
+
+Crie sua chave gratuita em um dos provedores suportados:
+
+\begin{itemize}
+  \item \textbf{Anthropic (Claude):} \href{https://console.anthropic.com}{console.anthropic.com}
+  \item \textbf{Google Gemini:} \href{https://aistudio.google.com}{aistudio.google.com}
+  \item \textbf{Maritaca AI (Sabiá --- IA brasileira):} \href{https://plataforma.maritaca.ai}{plataforma.maritaca.ai}
+\end{itemize}
+
+Configure a chave no terminal:
+
+\begin{lstlisting}
+# Linux/Mac
+export ANTHROPIC_API_KEY=sua-chave-aqui
+
+# Windows (CMD)
+set ANTHROPIC_API_KEY=sua-chave-aqui
+\end{lstlisting}
+
+Ou passe diretamente na linha de comando:
+
+\begin{lstlisting}
+python bh_news_chatbot/main.py --use-local-csv --api-key sua-chave-aqui
+\end{lstlisting}
+
+Dentro do chat, pergunte em linguagem natural:
+
+\begin{lstlisting}
+> Quais decretos tratam de transporte publico em 2024?
+> O que diz o decreto 18.012?
+> Existem atos sobre habitacao de interesse social?
+\end{lstlisting}
+
+Use \texttt{/ajuda} para ver todos os comandos e \texttt{/sair} para encerrar.
+
+\subsection{Como contribuir com o projeto}
+
+Opensource é sobre colaboração. Se você encontrou um bug, quer sugerir uma melhoria ou adicionar uma funcionalidade:
+
+\begin{enumerate}
+  \item \textbf{Abra uma issue} no GitHub descrevendo o problema ou a ideia
+  \item \textbf{Fork} o repositório (cria uma cópia sua no GitHub)
+  \item Faça as mudanças na sua cópia
+  \item \textbf{Abra um Pull Request} --- uma proposta de mudança que os mantenedores podem revisar e aceitar
+\end{enumerate}
+
+Não precisa ser programador para contribuir: melhorar a documentação, reportar bugs ou sugerir novas fontes de dados já são contribuições valiosas.
+
+\vfill
+\begin{center}
+  \small\color{bhgray}
+  \rule{0.4\linewidth}{0.4pt}\\[4pt]
+  Opensource BH \textbullet{} Maio de 2026 \textbullet{}
+  \href{https://github.com/paraenseembh/opensource_bh}{github.com/paraenseembh/opensource\_bh}
+\end{center}
+
+\end{document}

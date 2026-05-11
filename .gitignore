@@ -8,3 +8,12 @@ bh_news_chatbot_r/cache/
 .RData
 .Rproj.user/
 *.Rproj
+
+# LaTeX auxiliary files
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.fls
+*.fdb_latexmk
